@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "884067584071",
+    "project_id": "campus-navigation-system-s7s",
+    "storage_bucket": "campus-navigation-system-s7s.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:884067584071:android:b20f2441702dbcb1bac962",
+        "android_client_info": {
+          "package_name": "com.example.campus_navigation_system"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBgVtS9AV445fPlAppeH1RUWJDDgKgWuNc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
