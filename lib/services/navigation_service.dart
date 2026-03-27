@@ -30,7 +30,8 @@ class NavigationService {
     double dLat = lat2 - lat1;
     double dLng = (end.longitude - start.longitude) * (3.14159265359 / 180.0);
 
-    double a = (sin(dLat / 2) * sin(dLat / 2)) +
+    double a =
+        (sin(dLat / 2) * sin(dLat / 2)) +
         (cos(lat1) * cos(lat2) * sin(dLng / 2) * sin(dLng / 2));
     double c = 2 * asin(sqrt(a));
 
@@ -43,13 +44,13 @@ class NavigationService {
     double result = 0;
     double term = x;
     int n = 1;
-    
+
     for (int i = 0; i < 10; i++) {
       result += term;
       term *= -x * x / ((2 * n) * (2 * n + 1));
       n++;
     }
-    
+
     return result;
   }
 
@@ -62,7 +63,8 @@ class NavigationService {
     // For demo, we'll create a simple straight-line route
 
     final distance = calculateDistance(start.coordinates, end.coordinates);
-    final estimatedTime = (distance / 1.4).round(); // Assuming 1.4 m/s walking speed
+    final estimatedTime = (distance / 1.4)
+        .round(); // Assuming 1.4 m/s walking speed
 
     // Create path points (simplified - in real app, use actual path)
     final pathPoints = [start.coordinates, end.coordinates];
@@ -160,7 +162,8 @@ class NavigationService {
   double getDirection(LatLng from, LatLng to) {
     double dLon = (to.longitude - from.longitude);
     double y = sin(dLon) * cos(to.latitude);
-    double x = cos(from.latitude) * sin(to.latitude) -
+    double x =
+        cos(from.latitude) * sin(to.latitude) -
         sin(from.latitude) * cos(to.latitude) * cos(dLon);
     double bearing = atan2(y, x);
     return (bearing * 180 / 3.14159265359 + 360) % 360;
@@ -188,17 +191,17 @@ class NavigationService {
     if (x.abs() > 1) {
       return (3.14159265359 / 2) - atan(1 / x);
     }
-    
+
     double result = 0;
     double term = x;
     int n = 1;
-    
+
     for (int i = 0; i < 15; i++) {
       result += term;
       term *= -x * x * (2 * n - 1) / (2 * n + 1);
       n++;
     }
-    
+
     return result;
   }
 

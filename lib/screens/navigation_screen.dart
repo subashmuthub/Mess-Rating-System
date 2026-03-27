@@ -4,18 +4,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import '../models/location_model.dart';
 import '../services/navigation_service.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../theme/app_style.dart';
 
 class NavigationScreen extends StatefulWidget {
   final LocationModel destination;
 
-  const NavigationScreen({
-    super.key,
-    required this.destination,
-  });
+  const NavigationScreen({super.key, required this.destination});
 
   @override
   State<NavigationScreen> createState() => _NavigationScreenState();
@@ -28,13 +25,12 @@ class _NavigationScreenState extends State<NavigationScreen> {
   Set<Marker> _markers = {};
   Set<Polyline> _polylines = {};
   List<LatLng> _routePoints = [];
-  bool _isNavigating = false;
   String _currentInstruction = 'Getting your location...';
   double _distanceRemaining = 0;
   double _estimatedTime = 0;
   String _nextTurn = '';
   int _currentStepIndex = 0;
-  List<String> _navigationSteps = [];
+  final List<String> _navigationSteps = [];
 
   @override
   void initState() {
@@ -73,7 +69,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
           timeLimit: const Duration(seconds: 5),
         );
       } catch (e) {
-        print('Could not get location: $e');
+        debugPrint('Could not get location: $e');
         // Use campus center as fallback
         position = null;
       }
@@ -98,7 +94,6 @@ class _NavigationScreenState extends State<NavigationScreen> {
       }
 
       setState(() {
-        _isNavigating = true;
         if (position != null) {
           _currentInstruction = 'Navigation started';
         } else {
@@ -111,14 +106,13 @@ class _NavigationScreenState extends State<NavigationScreen> {
         'Navigation to ${widget.destination.name}. Distance is ${_distanceRemaining.toStringAsFixed(0)} meters',
       );
     } catch (e) {
-      print('Error starting navigation: $e');
+      debugPrint('Error starting navigation: $e');
       // Even if there's an error, show the destination
       setState(() {
         _currentPosition = const LatLng(9.1726, 77.8718);
         _currentInstruction = 'Showing destination location';
       });
       await _buildRoute();
-      setState(() => _isNavigating = true);
     }
   }
 
@@ -147,13 +141,13 @@ class _NavigationScreenState extends State<NavigationScreen> {
     });
 
     // Calculate straight-line route (for campus navigation)
-    _routePoints = [
-      _currentPosition!,
-      widget.destination.coordinates,
-    ];
+    _routePoints = [_currentPosition!, widget.destination.coordinates];
 
     // For more realistic campus navigation, add intermediate points
-    _routePoints = _generateCampusRoute(_currentPosition!, widget.destination.coordinates);
+    _routePoints = _generateCampusRoute(
+      _currentPosition!,
+      widget.destination.coordinates,
+    );
 
     // Create polyline
     setState(() {
@@ -161,7 +155,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
         Polyline(
           polylineId: const PolylineId('route'),
           points: _routePoints,
-          color: Colors.blue,
+          color: AppStyle.primary,
           width: 5,
           patterns: [PatternItem.dash(20), PatternItem.gap(10)],
           startCap: Cap.roundCap,
@@ -201,14 +195,16 @@ class _NavigationScreenState extends State<NavigationScreen> {
     int numSteps = 5;
     for (int i = 1; i < numSteps; i++) {
       double progress = i / numSteps;
-      
+
       // Add slight curve to make it look like a walking path
       double offset = 0.0001 * (i % 2 == 0 ? 1 : -1);
-      
-      points.add(LatLng(
-        start.latitude + (latDiff * progress),
-        start.longitude + (lngDiff * progress) + offset,
-      ));
+
+      points.add(
+        LatLng(
+          start.latitude + (latDiff * progress),
+          start.longitude + (lngDiff * progress) + offset,
+        ),
+      );
     }
 
     points.add(end);
@@ -217,7 +213,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
 
   void _generateNavigationSteps() {
     _navigationSteps.clear();
-    
+
     if (_routePoints.length < 2) return;
 
     for (int i = 0; i < _routePoints.length - 1; i++) {
@@ -229,13 +225,17 @@ class _NavigationScreenState extends State<NavigationScreen> {
       );
 
       String direction = _getDirection(_routePoints[i], _routePoints[i + 1]);
-      
+
       if (i == 0) {
-        _navigationSteps.add('Head $direction for ${distance.toStringAsFixed(0)} meters');
+        _navigationSteps.add(
+          'Head $direction for ${distance.toStringAsFixed(0)} meters',
+        );
       } else if (i == _routePoints.length - 2) {
         _navigationSteps.add('Your destination is ahead');
       } else {
-        _navigationSteps.add('Continue $direction for ${distance.toStringAsFixed(0)} meters');
+        _navigationSteps.add(
+          'Continue $direction for ${distance.toStringAsFixed(0)} meters',
+        );
       }
     }
   }
@@ -292,60 +292,61 @@ class _NavigationScreenState extends State<NavigationScreen> {
       distanceFilter: 5, // Update every 5 meters
     );
 
-    _positionStreamSubscription = Geolocator.getPositionStream(
-      locationSettings: locationSettings,
-    ).listen((Position position) {
-      if (!mounted) return;
+    _positionStreamSubscription =
+        Geolocator.getPositionStream(locationSettings: locationSettings).listen(
+          (Position position) {
+            if (!mounted) return;
 
-      LatLng newPosition = LatLng(position.latitude, position.longitude);
-      
-      setState(() {
-        _currentPosition = newPosition;
-        
-        // Update current marker
-        _markers.removeWhere((m) => m.markerId.value == 'current');
-        _markers.add(
-          Marker(
-            markerId: const MarkerId('current'),
-            position: newPosition,
-            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-            infoWindow: const InfoWindow(title: 'Your Location'),
-            rotation: position.heading,
-          ),
+            LatLng newPosition = LatLng(position.latitude, position.longitude);
+
+            setState(() {
+              _currentPosition = newPosition;
+
+              // Update current marker
+              _markers.removeWhere((m) => m.markerId.value == 'current');
+              _markers.add(
+                Marker(
+                  markerId: const MarkerId('current'),
+                  position: newPosition,
+                  icon: BitmapDescriptor.defaultMarkerWithHue(
+                    BitmapDescriptor.hueBlue,
+                  ),
+                  infoWindow: const InfoWindow(title: 'Your Location'),
+                  rotation: position.heading,
+                ),
+              );
+
+              // Recalculate remaining distance
+              _distanceRemaining = Geolocator.distanceBetween(
+                newPosition.latitude,
+                newPosition.longitude,
+                widget.destination.coordinates.latitude,
+                widget.destination.coordinates.longitude,
+              );
+
+              // Update estimated time
+              _estimatedTime = _distanceRemaining / 1.4; // seconds
+
+              // Update navigation instruction
+              _updateNavigationInstruction();
+
+              // Check if arrived
+              if (_distanceRemaining < 10) {
+                _onArrived();
+              }
+            });
+
+            // Keep camera centered on user
+            _mapController?.animateCamera(CameraUpdate.newLatLng(newPosition));
+          },
         );
-
-        // Recalculate remaining distance
-        _distanceRemaining = Geolocator.distanceBetween(
-          newPosition.latitude,
-          newPosition.longitude,
-          widget.destination.coordinates.latitude,
-          widget.destination.coordinates.longitude,
-        );
-
-        // Update estimated time
-        _estimatedTime = _distanceRemaining / 1.4; // seconds
-
-        // Update navigation instruction
-        _updateNavigationInstruction();
-
-        // Check if arrived
-        if (_distanceRemaining < 10) {
-          _onArrived();
-        }
-      });
-
-      // Keep camera centered on user
-      _mapController?.animateCamera(
-        CameraUpdate.newLatLng(newPosition),
-      );
-    });
   }
 
   void _updateNavigationInstruction() {
     if (_currentStepIndex < _navigationSteps.length) {
       setState(() {
         _currentInstruction = _navigationSteps[_currentStepIndex];
-        
+
         // Update next turn if available
         if (_currentStepIndex + 1 < _navigationSteps.length) {
           _nextTurn = _navigationSteps[_currentStepIndex + 1];
@@ -366,7 +367,9 @@ class _NavigationScreenState extends State<NavigationScreen> {
         if (distanceToNextPoint < 20) {
           _currentStepIndex++;
           if (_currentStepIndex < _navigationSteps.length) {
-            NavigationService.instance.speakInstruction(_navigationSteps[_currentStepIndex]);
+            NavigationService.instance.speakInstruction(
+              _navigationSteps[_currentStepIndex],
+            );
           }
         }
       }
@@ -375,7 +378,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
 
   void _onArrived() {
     _positionStreamSubscription?.cancel();
-    
+
     NavigationService.instance.speakInstruction(
       'You have arrived at ${widget.destination.name}',
     );
@@ -409,7 +412,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
           'Navigate to ${widget.destination.name}',
           style: GoogleFonts.poppins(fontSize: 16),
         ),
-        backgroundColor: Colors.blue.shade700,
+        backgroundColor: AppStyle.primary,
         foregroundColor: Colors.white,
         elevation: 0,
       ),
@@ -437,9 +440,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
               zoomGesturesEnabled: true,
             )
           else
-            const Center(
-              child: CircularProgressIndicator(),
-            ),
+            const Center(child: CircularProgressIndicator()),
 
           // Navigation Info Panel
           Positioned(
@@ -455,7 +456,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [Colors.blue.shade700, Colors.blue.shade500],
+                    colors: const [AppStyle.primary, AppStyle.accent],
                   ),
                   borderRadius: BorderRadius.circular(16),
                 ),
@@ -467,7 +468,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: const Icon(
@@ -505,10 +506,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
                               ? '${(_estimatedTime / 60).toStringAsFixed(0)} min'
                               : '${_estimatedTime.toStringAsFixed(0)} sec',
                         ),
-                        _buildInfoChip(
-                          icon: Icons.speed,
-                          label: '5 km/h',
-                        ),
+                        _buildInfoChip(icon: Icons.speed, label: '5 km/h'),
                       ],
                     ),
                     if (_nextTurn.isNotEmpty) ...[
@@ -516,12 +514,16 @@ class _NavigationScreenState extends State<NavigationScreen> {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.turn_right, color: Colors.white, size: 16),
+                            const Icon(
+                              Icons.turn_right,
+                              color: Colors.white,
+                              size: 16,
+                            ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
@@ -557,15 +559,15 @@ class _NavigationScreenState extends State<NavigationScreen> {
                     }
                   },
                   backgroundColor: Colors.white,
-                  child: const Icon(Icons.my_location, color: Colors.blue),
                   heroTag: 'location',
+                  child: const Icon(Icons.my_location, color: AppStyle.primary),
                 ),
                 const SizedBox(height: 12),
                 FloatingActionButton(
                   onPressed: _fitRouteInView,
                   backgroundColor: Colors.white,
-                  child: const Icon(Icons.zoom_out_map, color: Colors.blue),
                   heroTag: 'route',
+                  child: const Icon(Icons.zoom_out_map, color: AppStyle.primary),
                 ),
               ],
             ),
@@ -584,7 +586,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
               icon: const Icon(Icons.stop),
               label: const Text('Stop Navigation'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
+                backgroundColor: AppStyle.danger,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
@@ -602,7 +604,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
+        color: Colors.white.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(

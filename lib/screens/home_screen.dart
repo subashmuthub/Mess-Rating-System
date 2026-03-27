@@ -9,8 +9,11 @@ import 'map_screen.dart';
 import 'search_screen.dart';
 import 'favorites_screen.dart';
 import 'profile_screen.dart';
+import '../theme/app_style.dart';
+
 import 'admin_screen.dart';
 import 'virtual_tour_screen.dart';
+import 'events_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -21,40 +24,41 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
-  
+
+
   List<Widget> get _screens => [
-        const DashboardScreen(),
-        const SearchScreen(),
-        const FavoritesScreen(),
-        const ProfileScreen(),
-      ];
+    const DashboardScreen(),
+    const SearchScreen(),
+    const EventsScreen(),
+    const FavoritesScreen(),
+    const ProfileScreen(),
+  ];
 
   @override
   Widget build(BuildContext context) {
     final user = AuthService.instance.currentUser;
 
     return Scaffold(
+      backgroundColor: AppStyle.pageBackground,
       appBar: AppBar(
         title: Text(
           'Campus Navigation',
           style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
         ),
-        backgroundColor: Colors.blue.shade700,
-        foregroundColor: Colors.white,
-        elevation: 0,
+        elevation: 0.5,
         actions: [
           // Admin Panel Access (only for admins)
           if (user?.role == UserRole.admin)
             IconButton(
               icon: const Icon(Icons.admin_panel_settings),
               onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const AdminScreen()),
-                );
+                Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: (_) => const AdminScreen()));
               },
               tooltip: 'Admin Panel',
             ),
-          
+
           // Notifications
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
@@ -71,8 +75,8 @@ class _HomeScreenState extends State<HomeScreen> {
         currentIndex: _currentIndex,
         onTap: (index) => setState(() => _currentIndex = index),
         type: BottomNavigationBarType.fixed,
-        selectedItemColor: Colors.blue.shade700,
-        unselectedItemColor: Colors.grey,
+        selectedItemColor: AppStyle.primary,
+        unselectedItemColor: AppStyle.textMuted,
         selectedLabelStyle: GoogleFonts.poppins(fontWeight: FontWeight.w600),
         unselectedLabelStyle: GoogleFonts.poppins(),
         items: const [
@@ -80,35 +84,28 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icon(Icons.dashboard),
             label: 'Dashboard',
           ),
+          BottomNavigationBarItem(icon: Icon(Icons.search), label: 'Search'),
           BottomNavigationBarItem(
-            icon: Icon(Icons.search),
-            label: 'Search',
+            icon: Icon(Icons.event),
+            label: 'Events',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.favorite),
             label: 'Favorites',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
         ],
       ),
       drawer: _buildDrawer(context, user),
     );
   }
-
   Widget _buildDrawer(BuildContext context, UserModel? user) {
     return Drawer(
       child: Column(
         children: [
           UserAccountsDrawerHeader(
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Colors.blue.shade700, Colors.blue.shade900],
-              ),
+              gradient: AppStyle.authGradient,
             ),
             currentAccountPicture: CircleAvatar(
               backgroundColor: Colors.white,
@@ -116,7 +113,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 user?.name.substring(0, 1).toUpperCase() ?? 'U',
                 style: TextStyle(
                   fontSize: 40,
-                  color: Colors.blue.shade700,
+                  color: AppStyle.primary,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -130,7 +127,7 @@ class _HomeScreenState extends State<HomeScreen> {
               style: GoogleFonts.poppins(),
             ),
           ),
-          
+
           Expanded(
             child: ListView(
               padding: EdgeInsets.zero,
@@ -166,7 +163,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   title: 'My Favorites',
                   onTap: () {
                     Navigator.pop(context);
-                    setState(() => _currentIndex = 2);
+                    setState(() => _currentIndex = 3);
                   },
                 ),
                 const Divider(),
@@ -226,17 +223,17 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
-          
+
           const Divider(),
           _buildDrawerItem(
             icon: Icons.logout,
             title: 'Logout',
-            textColor: Colors.red,
+            textColor: AppStyle.danger,
             onTap: () async {
+              final navigator = Navigator.of(context);
               await AuthService.instance.logout();
-              if (mounted) {
-                Navigator.of(context).pushReplacementNamed('/login');
-              }
+              if (!mounted) return;
+              navigator.pushReplacementNamed('/login');
             },
           ),
           const SizedBox(height: 10),
@@ -253,13 +250,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }) {
     return ListTile(
       leading: Icon(icon, color: textColor),
-      title: Text(
-        title,
-        style: GoogleFonts.poppins(color: textColor),
-      ),
+      title: Text(title, style: GoogleFonts.poppins(color: textColor)),
       onTap: onTap,
     );
   }
+
 
   void _showNavigationGuide() {
     showDialog(
@@ -271,11 +266,31 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              _buildGuideItem('🗺️', 'View Map', 'Browse the interactive campus map'),
-              _buildGuideItem('🔍', 'Search Location', 'Find buildings, departments & places'),
-              _buildGuideItem('🧭', 'Get Directions', 'Navigate to any campus location'),
-              _buildGuideItem('🔊', 'Voice Guide', 'Enable voice navigation for hands-free'),
-              _buildGuideItem('⭐', 'Save Favorites', 'Quick access to frequently visited places'),
+              _buildGuideItem(
+                '🗺️',
+                'View Map',
+                'Browse the interactive campus map',
+              ),
+              _buildGuideItem(
+                '🔍',
+                'Search Location',
+                'Find buildings, departments & places',
+              ),
+              _buildGuideItem(
+                '🧭',
+                'Get Directions',
+                'Navigate to any campus location',
+              ),
+              _buildGuideItem(
+                '🔊',
+                'Voice Guide',
+                'Enable voice navigation for hands-free',
+              ),
+              _buildGuideItem(
+                '⭐',
+                'Save Favorites',
+                'Quick access to frequently visited places',
+              ),
             ],
           ),
         ),
@@ -288,7 +303,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-
   Widget _buildGuideItem(String emoji, String title, String description) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
@@ -301,8 +315,17 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
-                Text(description, style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey)),
+                Text(
+                  title,
+                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                ),
+                Text(
+                  description,
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: AppStyle.textMuted,
+                  ),
+                ),
               ],
             ),
           ),

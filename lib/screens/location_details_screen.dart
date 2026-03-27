@@ -2,7 +2,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../models/location_model.dart';
 import '../services/navigation_service.dart';
 import '../services/auth_service.dart';
@@ -72,9 +71,7 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            _isFavorite
-                ? 'Added to favorites'
-                : 'Removed from favorites',
+            _isFavorite ? 'Added to favorites' : 'Removed from favorites',
           ),
         ),
       );
@@ -95,12 +92,7 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
                 widget.location.name,
                 style: GoogleFonts.poppins(
                   fontWeight: FontWeight.bold,
-                  shadows: [
-                    const Shadow(
-                      color: Colors.black,
-                      blurRadius: 10,
-                    ),
-                  ],
+                  shadows: [const Shadow(color: Colors.black, blurRadius: 10)],
                 ),
               ),
               background: Stack(
@@ -114,7 +106,9 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
                         end: Alignment.bottomRight,
                         colors: [
                           _getLocationColor(widget.location.type),
-                          _getLocationColor(widget.location.type).withOpacity(0.7),
+                          _getLocationColor(
+                            widget.location.type,
+                          ).withValues(alpha: 0.7),
                         ],
                       ),
                     ),
@@ -122,7 +116,7 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
                       child: Icon(
                         _getLocationIcon(widget.location.type),
                         size: 120,
-                        color: Colors.white.withOpacity(0.3),
+                        color: Colors.white.withValues(alpha: 0.3),
                       ),
                     ),
                   ),
@@ -133,7 +127,7 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
                         end: Alignment.bottomCenter,
                         colors: [
                           Colors.transparent,
-                          Colors.black.withOpacity(0.7),
+                          Colors.black.withValues(alpha: 0.7),
                         ],
                       ),
                     ),
@@ -182,10 +176,17 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(widget.location.typeIcon, style: const TextStyle(fontSize: 16)),
+                        Text(
+                          widget.location.typeIcon,
+                          style: const TextStyle(fontSize: 16),
+                        ),
                         const SizedBox(width: 6),
                         Text(
-                          widget.location.type.toString().split('.').last.toUpperCase(),
+                          widget.location.type
+                              .toString()
+                              .split('.')
+                              .last
+                              .toUpperCase(),
                           style: GoogleFonts.poppins(
                             color: Colors.blue.shade700,
                             fontWeight: FontWeight.w600,
@@ -379,7 +380,8 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
       builder: (context) => AlertDialog(
         title: Text('Contact Information', style: GoogleFonts.poppins()),
         content: Text(
-          widget.location.contactInfo?.toString() ?? 'No contact information available',
+          widget.location.contactInfo?.toString() ??
+              'No contact information available',
           style: GoogleFonts.poppins(),
         ),
         actions: [

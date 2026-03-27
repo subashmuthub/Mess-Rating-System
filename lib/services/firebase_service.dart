@@ -1,5 +1,6 @@
 // Firebase Service - Handle all Firebase operations
 
+import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_model.dart';
@@ -15,22 +16,29 @@ class FirebaseService {
 
   // Collections
   CollectionReference get _usersCollection => _firestore.collection('users');
-  CollectionReference get _locationsCollection => _firestore.collection('locations');
-  CollectionReference get _favoritesCollection => _firestore.collection('favorites');
-  CollectionReference get _feedbackCollection => _firestore.collection('feedback');
-  CollectionReference get _analyticsCollection => _firestore.collection('analytics');
+  CollectionReference get _locationsCollection =>
+      _firestore.collection('locations');
+  CollectionReference get _favoritesCollection =>
+      _firestore.collection('favorites');
+  CollectionReference get _feedbackCollection =>
+      _firestore.collection('feedback');
+  CollectionReference get _analyticsCollection =>
+      _firestore.collection('analytics');
 
   // ============= AUTH OPERATIONS =============
 
   // Register with Email & Password
-  Future<UserCredential?> registerWithEmail(String email, String password) async {
+  Future<UserCredential?> registerWithEmail(
+    String email,
+    String password,
+  ) async {
     try {
       return await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
     } catch (e) {
-      print('Firebase Auth Registration Error: $e');
+      debugPrint('Firebase Auth Registration Error: $e');
       rethrow;
     }
   }
@@ -43,7 +51,7 @@ class FirebaseService {
         password: password,
       );
     } catch (e) {
-      print('Firebase Auth Login Error: $e');
+      debugPrint('Firebase Auth Login Error: $e');
       rethrow;
     }
   }
@@ -63,7 +71,7 @@ class FirebaseService {
     try {
       await _usersCollection.doc(user.id).set(user.toJson());
     } catch (e) {
-      print('Error creating user document: $e');
+      debugPrint('Error creating user document: $e');
       rethrow;
     }
   }
@@ -77,7 +85,7 @@ class FirebaseService {
       }
       return null;
     } catch (e) {
-      print('Error getting user: $e');
+      debugPrint('Error getting user: $e');
       return null;
     }
   }
@@ -92,21 +100,25 @@ class FirebaseService {
 
       if (querySnapshot.docs.isNotEmpty) {
         return UserModel.fromJson(
-            querySnapshot.docs.first.data() as Map<String, dynamic>);
+          querySnapshot.docs.first.data() as Map<String, dynamic>,
+        );
       }
       return null;
     } catch (e) {
-      print('Error getting user by email: $e');
+      debugPrint('Error getting user by email: $e');
       return null;
     }
   }
 
   // Update user profile
-  Future<void> updateUserProfile(String userId, Map<String, dynamic> updates) async {
+  Future<void> updateUserProfile(
+    String userId,
+    Map<String, dynamic> updates,
+  ) async {
     try {
       await _usersCollection.doc(userId).update(updates);
     } catch (e) {
-      print('Error updating user profile: $e');
+      debugPrint('Error updating user profile: $e');
       rethrow;
     }
   }
@@ -118,10 +130,12 @@ class FirebaseService {
     try {
       final querySnapshot = await _locationsCollection.get();
       return querySnapshot.docs
-          .map((doc) => LocationModel.fromJson(doc.data() as Map<String, dynamic>))
+          .map(
+            (doc) => LocationModel.fromJson(doc.data() as Map<String, dynamic>),
+          )
           .toList();
     } catch (e) {
-      print('Error getting locations: $e');
+      debugPrint('Error getting locations: $e');
       return [];
     }
   }
@@ -131,7 +145,7 @@ class FirebaseService {
     try {
       await _locationsCollection.doc(location.id).set(location.toJson());
     } catch (e) {
-      print('Error saving location: $e');
+      debugPrint('Error saving location: $e');
       rethrow;
     }
   }
@@ -141,7 +155,7 @@ class FirebaseService {
     try {
       await _locationsCollection.doc(locationId).delete();
     } catch (e) {
-      print('Error deleting location: $e');
+      debugPrint('Error deleting location: $e');
       rethrow;
     }
   }
@@ -151,16 +165,18 @@ class FirebaseService {
     try {
       final querySnapshot = await _locationsCollection.get();
       final allLocations = querySnapshot.docs
-          .map((doc) => LocationModel.fromJson(doc.data() as Map<String, dynamic>))
+          .map(
+            (doc) => LocationModel.fromJson(doc.data() as Map<String, dynamic>),
+          )
           .toList();
 
       // Filter locations by name or description
       return allLocations.where((location) {
         return location.name.toLowerCase().contains(query.toLowerCase()) ||
-            (location.description?.toLowerCase().contains(query.toLowerCase()) ?? false);
+            location.description.toLowerCase().contains(query.toLowerCase());
       }).toList();
     } catch (e) {
-      print('Error searching locations: $e');
+      debugPrint('Error searching locations: $e');
       return [];
     }
   }
@@ -178,7 +194,7 @@ class FirebaseService {
       );
       await _favoritesCollection.doc(favorite.id).set(favorite.toJson());
     } catch (e) {
-      print('Error adding favorite: $e');
+      debugPrint('Error adding favorite: $e');
       rethrow;
     }
   }
@@ -188,7 +204,7 @@ class FirebaseService {
     try {
       await _favoritesCollection.doc('${userId}_$locationId').delete();
     } catch (e) {
-      print('Error removing favorite: $e');
+      debugPrint('Error removing favorite: $e');
       rethrow;
     }
   }
@@ -201,10 +217,12 @@ class FirebaseService {
           .get();
 
       return querySnapshot.docs
-          .map((doc) => FavoriteModel.fromJson(doc.data() as Map<String, dynamic>))
+          .map(
+            (doc) => FavoriteModel.fromJson(doc.data() as Map<String, dynamic>),
+          )
           .toList();
     } catch (e) {
-      print('Error getting favorites: $e');
+      debugPrint('Error getting favorites: $e');
       return [];
     }
   }
@@ -215,7 +233,7 @@ class FirebaseService {
       final doc = await _favoritesCollection.doc('${userId}_$locationId').get();
       return doc.exists;
     } catch (e) {
-      print('Error checking favorite: $e');
+      debugPrint('Error checking favorite: $e');
       return false;
     }
   }
@@ -241,7 +259,7 @@ class FirebaseService {
         'type': 'navigation',
       });
     } catch (e) {
-      print('Error tracking navigation: $e');
+      debugPrint('Error tracking navigation: $e');
     }
   }
 
@@ -255,7 +273,7 @@ class FirebaseService {
         'type': 'search',
       });
     } catch (e) {
-      print('Error tracking search: $e');
+      debugPrint('Error tracking search: $e');
     }
   }
 
@@ -273,7 +291,7 @@ class FirebaseService {
         'timestamp': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      print('Error submitting feedback: $e');
+      debugPrint('Error submitting feedback: $e');
       rethrow;
     }
   }
@@ -286,13 +304,10 @@ class FirebaseService {
           .get();
 
       return querySnapshot.docs
-          .map((doc) => {
-                'id': doc.id,
-                ...doc.data() as Map<String, dynamic>,
-              })
+          .map((doc) => {'id': doc.id, ...doc.data() as Map<String, dynamic>})
           .toList();
     } catch (e) {
-      print('Error getting feedback: $e');
+      debugPrint('Error getting feedback: $e');
       return [];
     }
   }
@@ -334,13 +349,13 @@ class FirebaseService {
         'totalNavigations': totalNavigations,
         'totalDistance': totalDistance,
         'averageDistance': totalDistance / totalNavigations,
-        'popularRoutes': sortedRoutes.take(10).map((e) => {
-          'route': e.key,
-          'count': e.value,
-        }).toList(),
+        'popularRoutes': sortedRoutes
+            .take(10)
+            .map((e) => {'route': e.key, 'count': e.value})
+            .toList(),
       };
     } catch (e) {
-      print('Error getting navigation stats: $e');
+      debugPrint('Error getting navigation stats: $e');
       return {
         'totalNavigations': 0,
         'totalDistance': 0.0,
@@ -356,7 +371,9 @@ class FirebaseService {
   Stream<List<LocationModel>> locationStream() {
     return _locationsCollection.snapshots().map((snapshot) {
       return snapshot.docs
-          .map((doc) => LocationModel.fromJson(doc.data() as Map<String, dynamic>))
+          .map(
+            (doc) => LocationModel.fromJson(doc.data() as Map<String, dynamic>),
+          )
           .toList();
     });
   }
@@ -367,9 +384,12 @@ class FirebaseService {
         .where('userId', isEqualTo: userId)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs
-          .map((doc) => FavoriteModel.fromJson(doc.data() as Map<String, dynamic>))
-          .toList();
-    });
+          return snapshot.docs
+              .map(
+                (doc) =>
+                    FavoriteModel.fromJson(doc.data() as Map<String, dynamic>),
+              )
+              .toList();
+        });
   }
 }

@@ -1,11 +1,6 @@
 // User Model - Represents different types of users in the system
 
-enum UserRole {
-  student,
-  faculty,
-  visitor,
-  admin,
-}
+enum UserRole { student, faculty, visitor, admin }
 
 class UserModel {
   final String id;
@@ -48,9 +43,7 @@ class UserModel {
       id: json['id'],
       name: json['name'],
       email: json['email'],
-      role: UserRole.values.firstWhere(
-        (e) => e.toString() == json['role'],
-      ),
+      role: UserRole.values.firstWhere((e) => e.toString() == json['role']),
       department: json['department'],
       phoneNumber: json['phoneNumber'],
       profileImage: json['profileImage'],

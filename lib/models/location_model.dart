@@ -75,9 +75,7 @@ class LocationModel {
       id: json['id'],
       name: json['name'],
       description: json['description'],
-      type: LocationType.values.firstWhere(
-        (e) => e.toString() == json['type'],
-      ),
+      type: LocationType.values.firstWhere((e) => e.toString() == json['type']),
       coordinates: LatLng(json['latitude'], json['longitude']),
       buildingCode: json['buildingCode'],
       floorNumber: json['floorNumber'],

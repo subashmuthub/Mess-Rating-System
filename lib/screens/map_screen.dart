@@ -5,11 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:geolocator/geolocator.dart';
-import '../data/location_data.dart';
 import '../models/location_model.dart';
-import '../services/navigation_service.dart';
+import '../services/database_helper.dart';
 import 'location_details_screen.dart';
 import 'navigation_screen.dart';
+import '../theme/app_style.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -21,12 +21,15 @@ class MapScreen extends StatefulWidget {
 class _MapScreenState extends State<MapScreen> {
   GoogleMapController? _mapController;
   final Set<Marker> _markers = {};
+  List<LocationModel> _locations = [];
   LocationModel? _selectedLocation;
   LatLng? _currentPosition;
   bool _isLoading = true;
   bool _isTrackingLocation = false;
   StreamSubscription<Position>? _positionStreamSubscription;
   String _locationStatus = 'Getting your location...';
+
+  static const LatLng _fallbackCampusCenter = LatLng(9.1726, 77.8718);
 
   @override
   void initState() {
@@ -42,7 +45,8 @@ class _MapScreenState extends State<MapScreen> {
 
   Future<void> _initializeMap() async {
     await _getCurrentLocation();
-    _loadMarkers();
+    await _loadMarkers();
+    if (!mounted) return;
     setState(() => _isLoading = false);
   }
 
@@ -52,13 +56,16 @@ class _MapScreenState extends State<MapScreen> {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
         setState(() {
-          _locationStatus = 'Location services disabled. Using fallback location.';
-          _currentPosition = LocationData.campusCenter;
+          _locationStatus =
+              'Location services disabled. Using fallback location.';
+          _currentPosition = _fallbackCampusCenter;
         });
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Please enable location services for accurate positioning'),
+              content: Text(
+                'Please enable location services for accurate positioning',
+              ),
               duration: Duration(seconds: 3),
             ),
           );
@@ -72,8 +79,9 @@ class _MapScreenState extends State<MapScreen> {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
           setState(() {
-            _locationStatus = 'Location permission denied. Using fallback location.';
-            _currentPosition = LocationData.campusCenter;
+            _locationStatus =
+                'Location permission denied. Using fallback location.';
+            _currentPosition = _fallbackCampusCenter;
           });
           return;
         }
@@ -82,7 +90,7 @@ class _MapScreenState extends State<MapScreen> {
       if (permission == LocationPermission.deniedForever) {
         setState(() {
           _locationStatus = 'Location permission permanently denied.';
-          _currentPosition = LocationData.campusCenter;
+          _currentPosition = _fallbackCampusCenter;
         });
         return;
       }
@@ -93,69 +101,77 @@ class _MapScreenState extends State<MapScreen> {
         desiredAccuracy: LocationAccuracy.high,
         timeLimit: const Duration(seconds: 10),
       );
-      
+
       setState(() {
         _currentPosition = LatLng(position.latitude, position.longitude);
-        _locationStatus = 'Location: ${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}';
+        _locationStatus =
+            'Location: ${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}';
       });
 
       // Start continuous location tracking
       _startLocationTracking();
-      
     } catch (e) {
       setState(() {
         _locationStatus = 'Error getting location: $e';
-        _currentPosition = LocationData.campusCenter;
+        _currentPosition = _fallbackCampusCenter;
       });
-      print('Error getting location: $e');
+      debugPrint('Error getting location: $e');
     }
   }
 
   void _startLocationTracking() {
     _positionStreamSubscription?.cancel();
-    
+
     const LocationSettings locationSettings = LocationSettings(
       accuracy: LocationAccuracy.high,
       distanceFilter: 10, // Update every 10 meters
     );
 
-    _positionStreamSubscription = Geolocator.getPositionStream(
-      locationSettings: locationSettings,
-    ).listen((Position position) {
-      if (mounted) {
-        setState(() {
-          _currentPosition = LatLng(position.latitude, position.longitude);
-          _locationStatus = 'Live GPS: ${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}';
-          _isTrackingLocation = true;
+    _positionStreamSubscription =
+        Geolocator.getPositionStream(
+          locationSettings: locationSettings,
+        ).listen((Position position) {
+          if (mounted) {
+            setState(() {
+              _currentPosition = LatLng(position.latitude, position.longitude);
+              _locationStatus =
+                  'Live GPS: ${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}';
+              _isTrackingLocation = true;
+            });
+
+            // Update camera position if tracking is enabled
+            _mapController?.animateCamera(
+              CameraUpdate.newLatLng(_currentPosition!),
+            );
+          }
         });
-        
-        // Update camera position if tracking is enabled
-        _mapController?.animateCamera(
-          CameraUpdate.newLatLng(_currentPosition!),
-        );
-      }
-    });
   }
 
-  void _loadMarkers() {
-    final locations = LocationData.getSampleLocations();
-    
-    for (var location in locations) {
-      _markers.add(
-        Marker(
-          markerId: MarkerId(location.id),
-          position: location.coordinates,
-          infoWindow: InfoWindow(
-            title: location.name,
-            snippet: location.description,
-            onTap: () => _onMarkerTapped(location),
+  Future<void> _loadMarkers() async {
+    final locations = await DatabaseHelper.instance.getAllLocations();
+
+    if (!mounted) return;
+    setState(() {
+      _locations = locations;
+      _markers
+        ..clear()
+        ..addAll(
+          locations.map(
+            (location) => Marker(
+              markerId: MarkerId(location.id),
+              position: location.coordinates,
+              infoWindow: InfoWindow(
+                title: location.name,
+                snippet: location.description,
+                onTap: () => _onMarkerTapped(location),
+              ),
+              icon: BitmapDescriptor.defaultMarkerWithHue(
+                _getMarkerColor(location.type),
+              ),
+            ),
           ),
-          icon: BitmapDescriptor.defaultMarkerWithHue(
-            _getMarkerColor(location.type),
-          ),
-        ),
-      );
-    }
+        );
+    });
   }
 
   double _getMarkerColor(LocationType type) {
@@ -180,19 +196,19 @@ class _MapScreenState extends State<MapScreen> {
   Color _getLocationTypeColor(LocationType type) {
     switch (type) {
       case LocationType.department:
-        return Colors.blue;
+        return AppStyle.primary;
       case LocationType.library:
-        return Colors.purple;
+        return AppStyle.accent;
       case LocationType.lab:
-        return Colors.orange;
+        return AppStyle.warning;
       case LocationType.cafeteria:
-        return Colors.green;
+        return AppStyle.success;
       case LocationType.hostel:
-        return Colors.cyan;
+        return AppStyle.accent;
       case LocationType.parking:
-        return Colors.amber;
+        return AppStyle.warning;
       default:
-        return Colors.red;
+        return AppStyle.danger;
     }
   }
 
@@ -219,10 +235,6 @@ class _MapScreenState extends State<MapScreen> {
     setState(() => _selectedLocation = location);
   }
 
-  void _onMapCreated(GoogleMapController controller) {
-    _mapController = controller;
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -234,7 +246,7 @@ class _MapScreenState extends State<MapScreen> {
       children: [
         // Campus Locations List View
         Container(
-          color: Colors.grey.shade50,
+          color: AppStyle.pageBackground,
           child: Column(
             children: [
               // Map Header
@@ -242,7 +254,7 @@ class _MapScreenState extends State<MapScreen> {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [Colors.blue.shade700, Colors.blue.shade500],
+                    colors: const [AppStyle.primary, AppStyle.accent],
                   ),
                 ),
                 child: Column(
@@ -264,7 +276,7 @@ class _MapScreenState extends State<MapScreen> {
                                 ),
                               ),
                               Text(
-                                '${LocationData.getSampleLocations().length} locations available',
+                                '${_locations.length} locations available',
                                 style: GoogleFonts.poppins(
                                   fontSize: 12,
                                   color: Colors.white70,
@@ -277,16 +289,23 @@ class _MapScreenState extends State<MapScreen> {
                     ),
                     const SizedBox(height: 12),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
                         children: [
                           Icon(
-                            _isTrackingLocation ? Icons.gps_fixed : Icons.gps_not_fixed,
-                            color: _isTrackingLocation ? Colors.greenAccent : Colors.white70,
+                            _isTrackingLocation
+                                ? Icons.gps_fixed
+                                : Icons.gps_not_fixed,
+                            color: _isTrackingLocation
+                                ? AppStyle.success
+                                : Colors.white70,
                             size: 16,
                           ),
                           const SizedBox(width: 8),
@@ -303,10 +322,17 @@ class _MapScreenState extends State<MapScreen> {
                           ),
                           if (_currentPosition != null)
                             IconButton(
-                              icon: const Icon(Icons.my_location, color: Colors.white, size: 20),
+                              icon: const Icon(
+                                Icons.my_location,
+                                color: Colors.white,
+                                size: 20,
+                              ),
                               onPressed: () {
                                 _mapController?.animateCamera(
-                                  CameraUpdate.newLatLngZoom(_currentPosition!, 16),
+                                  CameraUpdate.newLatLngZoom(
+                                    _currentPosition!,
+                                    16,
+                                  ),
                                 );
                               },
                               tooltip: 'Center on my location',
@@ -321,85 +347,109 @@ class _MapScreenState extends State<MapScreen> {
               ),
               // Location List
               Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: LocationData.getSampleLocations().length,
-                  itemBuilder: (context, index) {
-                    final location = LocationData.getSampleLocations()[index];
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(12),
-                        onTap: () => _onMarkerTapped(location),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: _getLocationTypeColor(location.type).withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Icon(
-                                  _getLocationIcon(location.type),
-                                  color: _getLocationTypeColor(location.type),
-                                  size: 28,
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: _locations.isEmpty
+                    ? Center(
+                        child: Text(
+                          'No locations available. Add locations from Admin Panel.',
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            color: AppStyle.textMuted,
+                          ),
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _locations.length,
+                        itemBuilder: (context, index) {
+                          final location = _locations[index];
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            elevation: 2,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () => _onMarkerTapped(location),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Row(
                                   children: [
-                                    Text(
-                                      location.name,
-                                      style: GoogleFonts.poppins(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
+                                    Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: _getLocationTypeColor(
+                                          location.type,
+                                        ).withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Icon(
+                                        _getLocationIcon(location.type),
+                                        color: _getLocationTypeColor(
+                                          location.type,
+                                        ),
+                                        size: 28,
                                       ),
                                     ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      location.description,
-                                      style: GoogleFonts.poppins(
-                                        fontSize: 13,
-                                        color: Colors.grey.shade600,
-                                      ),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    if (location.buildingCode != null) ...[
-                                      const SizedBox(height: 4),
-                                      Row(
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
-                                          Icon(Icons.business, size: 14, color: Colors.grey.shade500),
-                                          const SizedBox(width: 4),
                                           Text(
-                                            location.buildingCode!,
+                                            location.name,
                                             style: GoogleFonts.poppins(
-                                              fontSize: 12,
-                                              color: Colors.grey.shade500,
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w600,
                                             ),
                                           ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            location.description,
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 13,
+                                              color: AppStyle.textMuted,
+                                            ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          if (location.buildingCode !=
+                                              null) ...[
+                                            const SizedBox(height: 4),
+                                            Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.business,
+                                                  size: 14,
+                                                  color: AppStyle.textMuted,
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  location.buildingCode!,
+                                                  style: GoogleFonts.poppins(
+                                                    fontSize: 12,
+                                                    color: AppStyle.textMuted,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
                                         ],
                                       ),
-                                    ],
+                                    ),
+                                    Icon(
+                                      Icons.arrow_forward_ios,
+                                      size: 16,
+                                      color: AppStyle.textMuted,
+                                    ),
                                   ],
                                 ),
                               ),
-                              Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey.shade400),
-                            ],
-                          ),
-                        ),
+                            ),
+                          );
+                        },
                       ),
-                    );
-                  },
-                ),
               ),
             ],
           ),
@@ -424,12 +474,16 @@ class _MapScreenState extends State<MapScreen> {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: _getLocationTypeColor(_selectedLocation!.type).withOpacity(0.1),
+                            color: _getLocationTypeColor(
+                              _selectedLocation!.type,
+                            ).withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Icon(
                             _getLocationIcon(_selectedLocation!.type),
-                            color: _getLocationTypeColor(_selectedLocation!.type),
+                            color: _getLocationTypeColor(
+                              _selectedLocation!.type,
+                            ),
                             size: 30,
                           ),
                         ),
@@ -449,7 +503,7 @@ class _MapScreenState extends State<MapScreen> {
                                 _selectedLocation!.description,
                                 style: GoogleFonts.poppins(
                                   fontSize: 12,
-                                  color: Colors.grey,
+                                  color: AppStyle.textMuted,
                                 ),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
@@ -487,7 +541,7 @@ class _MapScreenState extends State<MapScreen> {
                             icon: const Icon(Icons.directions),
                             label: const Text('Navigate'),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue.shade700,
+                              backgroundColor: AppStyle.primary,
                               foregroundColor: Colors.white,
                             ),
                           ),
@@ -503,44 +557,14 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  Widget _buildFilterChip(String label, LocationType? type) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: FilterChip(
-        label: Text(label),
-        onSelected: (selected) {
-          if (type == null) {
-            // Show all markers
-            _loadMarkers();
-          } else {
-            // Filter markers by type
-            _markers.clear();
-            final locations = LocationData.getLocationsByType(type);
-            for (var location in locations) {
-              _markers.add(
-                Marker(
-                  markerId: MarkerId(location.id),
-                  position: location.coordinates,
-                  infoWindow: InfoWindow(
-                    title: location.name,
-                    snippet: location.description,
-                    onTap: () => _onMarkerTapped(location),
-                  ),
-                ),
-              );
-            }
-          }
-          setState(() {});
-        },
-      ),
-    );
-  }
-
   void _showNavigationDialog(LocationModel destination) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Navigate to ${destination.name}', style: GoogleFonts.poppins()),
+        title: Text(
+          'Navigate to ${destination.name}',
+          style: GoogleFonts.poppins(),
+        ),
         content: Text(
           'Start real-time GPS navigation to ${destination.name}?',
           style: GoogleFonts.poppins(),
@@ -558,7 +582,7 @@ class _MapScreenState extends State<MapScreen> {
             icon: const Icon(Icons.navigation),
             label: const Text('Navigate'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blue.shade700,
+              backgroundColor: AppStyle.primary,
               foregroundColor: Colors.white,
             ),
           ),
@@ -572,7 +596,7 @@ class _MapScreenState extends State<MapScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Unable to get your current location'),
-          backgroundColor: Colors.red,
+          backgroundColor: AppStyle.danger,
         ),
       );
       return;

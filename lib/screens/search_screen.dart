@@ -2,8 +2,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../data/location_data.dart';
 import '../models/location_model.dart';
+import '../services/database_helper.dart';
+import '../theme/app_style.dart';
 import 'location_details_screen.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -15,19 +16,27 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
+  List<LocationModel> _allLocations = [];
   List<LocationModel> _searchResults = [];
   List<LocationModel> _recentSearches = [];
   bool _isSearching = false;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadRecentSearches();
+    _loadLocations();
   }
 
-  void _loadRecentSearches() {
-    // Load from database - currently empty
-    _recentSearches = [];
+  Future<void> _loadLocations() async {
+    final locations = await DatabaseHelper.instance.getAllLocations();
+    if (!mounted) return;
+
+    setState(() {
+      _allLocations = locations;
+      _recentSearches = locations.take(8).toList();
+      _isLoading = false;
+    });
   }
 
   void _performSearch(String query) {
@@ -41,22 +50,36 @@ class _SearchScreenState extends State<SearchScreen> {
 
     setState(() {
       _isSearching = true;
-      _searchResults = LocationData.searchLocations(query);
+      final lowerQuery = query.toLowerCase();
+      _searchResults = _allLocations.where((location) {
+        return location.name.toLowerCase().contains(lowerQuery) ||
+            location.description.toLowerCase().contains(lowerQuery) ||
+            (location.buildingCode?.toLowerCase().contains(lowerQuery) ??
+                false) ||
+            (location.tags?.any(
+                  (tag) => tag.toLowerCase().contains(lowerQuery),
+                ) ??
+                false);
+      }).toList();
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     return Column(
       children: [
         // Search Bar
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.blue.shade700,
+            color: AppStyle.primary,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.1),
+                color: Colors.black.withValues(alpha: 0.1),
                 blurRadius: 4,
                 offset: const Offset(0, 2),
               ),
@@ -68,7 +91,7 @@ class _SearchScreenState extends State<SearchScreen> {
             style: const TextStyle(color: Colors.white),
             decoration: InputDecoration(
               hintText: 'Search buildings, departments, places...',
-              hintStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
+              hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
               prefixIcon: const Icon(Icons.search, color: Colors.white),
               suffixIcon: _searchController.text.isNotEmpty
                   ? IconButton(
@@ -80,7 +103,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     )
                   : null,
               filled: true,
-              fillColor: Colors.white.withOpacity(0.2),
+              fillColor: Colors.white.withValues(alpha: 0.2),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(30),
                 borderSide: BorderSide.none,
@@ -91,9 +114,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
         // Search Results or Recent Searches
         Expanded(
-          child: _isSearching
-              ? _buildSearchResults()
-              : _buildRecentSearches(),
+          child: _isSearching ? _buildSearchResults() : _buildRecentSearches(),
         ),
       ],
     );
@@ -111,7 +132,7 @@ class _SearchScreenState extends State<SearchScreen> {
               'No results found',
               style: GoogleFonts.poppins(
                 fontSize: 18,
-                color: Colors.grey.shade600,
+                            color: AppStyle.textMuted,
               ),
             ),
             const SizedBox(height: 8),
@@ -119,7 +140,7 @@ class _SearchScreenState extends State<SearchScreen> {
               'Try different keywords',
               style: GoogleFonts.poppins(
                 fontSize: 14,
-                color: Colors.grey.shade500,
+                color: AppStyle.textMuted,
               ),
             ),
           ],
@@ -137,6 +158,15 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildRecentSearches() {
+    if (_allLocations.isEmpty) {
+      return Center(
+        child: Text(
+          'No locations available. Add locations from Admin Panel.',
+          style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey.shade600),
+        ),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -146,7 +176,7 @@ class _SearchScreenState extends State<SearchScreen> {
             'Popular Locations',
             style: GoogleFonts.poppins(
               fontSize: 18,
-              fontWeight: FontWeight.bold,
+                color: AppStyle.textMuted,
             ),
           ),
         ),
@@ -201,7 +231,7 @@ class _SearchScreenState extends State<SearchScreen> {
           width: 50,
           height: 50,
           decoration: BoxDecoration(
-            color: Colors.blue.shade50,
+            color: AppStyle.accent.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Center(
@@ -229,7 +259,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 location.buildingCode!,
                 style: GoogleFonts.poppins(
                   fontSize: 11,
-                  color: Colors.blue,
+                  color: AppStyle.primary,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -251,7 +281,9 @@ class _SearchScreenState extends State<SearchScreen> {
     return ActionChip(
       label: Text(label),
       onPressed: () {
-        final locations = LocationData.getLocationsByType(type);
+        final locations = _allLocations
+            .where((location) => location.type == type)
+            .toList();
         setState(() {
           _isSearching = true;
           _searchResults = locations;

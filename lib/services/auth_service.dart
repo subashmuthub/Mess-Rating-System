@@ -1,5 +1,6 @@
 // Authentication Service - Handle user login and session with Firebase
 
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:convert';
@@ -30,10 +31,15 @@ class AuthService {
     try {
       // Try Firebase Authentication
       try {
-        final userCredential = await _firebaseService.loginWithEmail(email, password);
+        final userCredential = await _firebaseService.loginWithEmail(
+          email,
+          password,
+        );
         if (userCredential != null) {
           // Get user data from Firestore
-          final userData = await _firebaseService.getUserById(userCredential.user!.uid);
+          final userData = await _firebaseService.getUserById(
+            userCredential.user!.uid,
+          );
           if (userData != null) {
             _currentUser = userData;
             await _saveUserSession(userData);
@@ -41,7 +47,7 @@ class AuthService {
           }
         }
       } on FirebaseAuthException catch (e) {
-        print('Firebase Auth Error: ${e.message}');
+        debugPrint('Firebase Auth Error: ${e.message}');
         // Fall back to local database
       }
 
@@ -54,7 +60,7 @@ class AuthService {
       }
       return false;
     } catch (e) {
-      print('Login error: $e');
+      debugPrint('Login error: $e');
       return false;
     }
   }
@@ -72,21 +78,26 @@ class AuthService {
       // Check if user already exists locally
       final existingUser = await DatabaseHelper.instance.getUserByEmail(email);
       if (existingUser != null) {
-        print('User with email $email already exists');
+        debugPrint('User with email $email already exists');
         return false;
       }
 
       // Try to register with Firebase
       UserCredential? userCredential;
       try {
-        userCredential = await _firebaseService.registerWithEmail(email, password);
+        userCredential = await _firebaseService.registerWithEmail(
+          email,
+          password,
+        );
       } on FirebaseAuthException catch (e) {
-        print('Firebase Registration Error: ${e.message}');
+        debugPrint('Firebase Registration Error: ${e.message}');
         // Continue with local registration even if Firebase fails
       }
 
       // Create user model
-      final userId = userCredential?.user?.uid ?? DateTime.now().millisecondsSinceEpoch.toString();
+      final userId =
+          userCredential?.user?.uid ??
+          DateTime.now().millisecondsSinceEpoch.toString();
       final user = UserModel(
         id: userId,
         name: name,
@@ -102,21 +113,21 @@ class AuthService {
         try {
           await _firebaseService.createUserDocument(user);
         } catch (e) {
-          print('Error saving to Firestore: $e');
+          debugPrint('Error saving to Firestore: $e');
         }
       }
 
       // Always save locally
-      print('Creating user locally: ${user.email}');
+      debugPrint('Creating user locally: ${user.email}');
       final result = await DatabaseHelper.instance.createUser(user);
-      print('User created with result: $result');
-      
+      debugPrint('User created with result: $result');
+
       _currentUser = user;
       await _saveUserSession(user);
       return true;
     } catch (e, stackTrace) {
-      print('Registration error: $e');
-      print('Stack trace: $stackTrace');
+      debugPrint('Registration error: $e');
+      debugPrint('Stack trace: $stackTrace');
       return false;
     }
   }
@@ -144,9 +155,9 @@ class AuthService {
     try {
       await _firebaseService.logout();
     } catch (e) {
-      print('Firebase logout error: $e');
+      debugPrint('Firebase logout error: $e');
     }
-    
+
     // Clear local session
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_userKey);
@@ -171,7 +182,7 @@ class AuthService {
       await _saveUserSession(_currentUser!);
       return true;
     } catch (e) {
-      print('Update profile error: $e');
+      debugPrint('Update profile error: $e');
       return false;
     }
   }

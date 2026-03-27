@@ -31,7 +31,9 @@ class RouteModel {
       'id': id,
       'startLocationId': startLocationId,
       'endLocationId': endLocationId,
-      'pathPoints': pathPoints.map((p) => {'lat': p.latitude, 'lng': p.longitude}).toList(),
+      'pathPoints': pathPoints
+          .map((p) => {'lat': p.latitude, 'lng': p.longitude})
+          .toList(),
       'distance': distance,
       'estimatedTime': estimatedTime,
       'instructions': instructions,

@@ -5,8 +5,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../services/auth_service.dart';
 import '../services/database_helper.dart';
 import '../models/favorite_model.dart';
-import '../data/location_data.dart';
 import '../models/location_model.dart';
+import '../theme/app_style.dart';
 import 'location_details_screen.dart';
 
 class FavoritesScreen extends StatefulWidget {
@@ -38,7 +38,9 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       final locations = <LocationModel>[];
 
       for (var favorite in favorites) {
-        final location = LocationData.getLocationById(favorite.locationId);
+        final location = await DatabaseHelper.instance.getLocationById(
+          favorite.locationId,
+        );
         if (location != null) {
           locations.add(location);
         }
@@ -109,18 +111,14 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.favorite_border,
-              size: 100,
-              color: Colors.grey.shade400,
-            ),
+            Icon(Icons.favorite_border, size: 100, color: Colors.grey.shade400),
             const SizedBox(height: 16),
             Text(
               'No Favorites Yet',
               style: GoogleFonts.poppins(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: Colors.grey.shade600,
+                color: AppStyle.textMuted,
               ),
             ),
             const SizedBox(height: 8),
@@ -128,7 +126,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
               'Save your frequently visited places here',
               style: GoogleFonts.poppins(
                 fontSize: 14,
-                color: Colors.grey.shade500,
+                color: AppStyle.textMuted,
               ),
             ),
           ],
@@ -143,7 +141,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              Icon(Icons.favorite, color: Colors.red.shade400),
+              Icon(Icons.favorite, color: AppStyle.danger),
               const SizedBox(width: 8),
               Text(
                 'My Favorites',
@@ -167,7 +165,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                     width: 50,
                     height: 50,
                     decoration: BoxDecoration(
-                      color: Colors.red.shade50,
+                      color: AppStyle.danger.withValues(alpha: 0.10),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Center(
@@ -191,7 +189,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.directions, color: Colors.blue),
+                        icon: const Icon(
+                          Icons.directions,
+                          color: AppStyle.primary,
+                        ),
                         onPressed: () {
                           // Navigate to location
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -202,7 +203,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                         },
                       ),
                       IconButton(
-                        icon: const Icon(Icons.delete, color: Colors.red),
+                        icon: const Icon(Icons.delete, color: AppStyle.danger),
                         onPressed: () => _removeFavorite(location),
                       ),
                     ],
@@ -210,7 +211,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                   onTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (_) => LocationDetailsScreen(location: location),
+                        builder: (_) =>
+                            LocationDetailsScreen(location: location),
                       ),
                     );
                   },

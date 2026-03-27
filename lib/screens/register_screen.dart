@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../services/auth_service.dart';
 import '../models/user_model.dart';
 import 'home_screen.dart';
+import '../theme/app_style.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -20,7 +21,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _passwordController = TextEditingController();
   final _phoneController = TextEditingController();
   final _departmentController = TextEditingController();
-  
+
   UserRole _selectedRole = UserRole.student;
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -45,20 +46,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
       email: _emailController.text.trim(),
       password: _passwordController.text,
       role: _selectedRole,
-      department: _departmentController.text.trim().isEmpty 
-          ? null 
+      department: _departmentController.text.trim().isEmpty
+          ? null
           : _departmentController.text.trim(),
-      phoneNumber: _phoneController.text.trim().isEmpty 
-          ? null 
+      phoneNumber: _phoneController.text.trim().isEmpty
+          ? null
           : _phoneController.text.trim(),
     );
 
+    if (!mounted) return;
     setState(() => _isLoading = false);
 
     if (success && mounted) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-      );
+      Navigator.of(
+        context,
+      ).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen()));
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -74,14 +76,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.green.shade700,
-              Colors.green.shade900,
-            ],
-          ),
+          gradient: AppStyle.authGradient,
         ),
         child: SafeArea(
           child: SingleChildScrollView(
@@ -91,7 +86,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               child: Column(
                 children: [
                   const SizedBox(height: 20),
-                  
+
                   // Title
                   Text(
                     'Create Account',
@@ -151,7 +146,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     obscureText: _obscurePassword,
                     suffixIcon: IconButton(
                       icon: Icon(
-                        _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                        _obscurePassword
+                            ? Icons.visibility
+                            : Icons.visibility_off,
                         color: Colors.white70,
                       ),
                       onPressed: () {
@@ -191,9 +188,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.1),
+                      color: Colors.white.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.white.withOpacity(0.3)),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.3),
+                      ),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -206,20 +205,38 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                         ),
                         const SizedBox(height: 10),
-                        ...UserRole.values.map((role) {
-                          return RadioListTile<UserRole>(
-                            title: Text(
-                              _getRoleName(role),
-                              style: const TextStyle(color: Colors.white),
-                            ),
-                            value: role,
-                            groupValue: _selectedRole,
-                            activeColor: Colors.white,
-                            onChanged: (value) {
-                              setState(() => _selectedRole = value!);
-                            },
-                          );
-                        }).toList(),
+                        SegmentedButton<UserRole>(
+                          style: ButtonStyle(
+                            foregroundColor: WidgetStateProperty.resolveWith((
+                              states,
+                            ) {
+                              if (states.contains(WidgetState.selected)) {
+                                return AppStyle.primaryDark;
+                              }
+                              return Colors.white;
+                            }),
+                            backgroundColor: WidgetStateProperty.resolveWith((
+                              states,
+                            ) {
+                              if (states.contains(WidgetState.selected)) {
+                                return Colors.white;
+                              }
+                              return Colors.transparent;
+                            }),
+                          ),
+                          segments: UserRole.values
+                              .map(
+                                (role) => ButtonSegment<UserRole>(
+                                  value: role,
+                                  label: Text(_getRoleName(role)),
+                                ),
+                              )
+                              .toList(),
+                          selected: {_selectedRole},
+                          onSelectionChanged: (value) {
+                            setState(() => _selectedRole = value.first);
+                          },
+                        ),
                       ],
                     ),
                   ),
@@ -233,7 +250,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       onPressed: _isLoading ? null : _handleRegister,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
-                        foregroundColor: Colors.green.shade700,
+                        foregroundColor: AppStyle.primary,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -301,14 +318,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
         prefixIcon: Icon(icon, color: Colors.white70),
         suffixIcon: suffixIcon,
         filled: true,
-        fillColor: Colors.white.withOpacity(0.1),
+        fillColor: Colors.white.withValues(alpha: 0.1),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.white.withOpacity(0.3)),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),

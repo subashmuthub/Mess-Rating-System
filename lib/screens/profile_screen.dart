@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/auth_service.dart';
+import '../theme/app_style.dart';
 import 'login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -73,11 +74,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             width: double.infinity,
             padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Colors.blue.shade700, Colors.blue.shade900],
-              ),
+              gradient: AppStyle.authGradient,
             ),
             child: Column(
               children: [
@@ -88,7 +85,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     user.name.substring(0, 1).toUpperCase(),
                     style: TextStyle(
                       fontSize: 50,
-                      color: Colors.blue.shade700,
+                      color: AppStyle.primary,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -109,7 +106,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -203,7 +200,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         '0',
                         'Favorites',
                         Icons.favorite,
-                        Colors.red,
+                        AppStyle.danger,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -212,7 +209,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         '0',
                         'Searches',
                         Icons.search,
-                        Colors.blue,
+                        AppStyle.primary,
                       ),
                     ),
                   ],
@@ -225,7 +222,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         '0',
                         'Routes',
                         Icons.directions,
-                        Colors.green,
+                        AppStyle.success,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -234,7 +231,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         '0',
                         'Visits',
                         Icons.location_on,
-                        Colors.orange,
+                        AppStyle.warning,
                       ),
                     ),
                   ],
@@ -246,18 +243,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     onPressed: () async {
+                      final navigator = Navigator.of(context);
                       await AuthService.instance.logout();
-                      if (mounted) {
-                        Navigator.of(context).pushAndRemoveUntil(
-                          MaterialPageRoute(builder: (_) => const LoginScreen()),
-                          (route) => false,
-                        );
-                      }
+                      if (!mounted) return;
+                      navigator.pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (_) => const LoginScreen()),
+                        (route) => false,
+                      );
                     },
                     icon: const Icon(Icons.logout),
                     label: const Text('Logout'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red.shade600,
+                      backgroundColor: AppStyle.danger,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
@@ -286,16 +283,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         filled: !enabled,
-        fillColor: enabled ? null : Colors.grey.shade100,
+        fillColor: enabled ? null : AppStyle.pageBackground,
       ),
     );
   }
 
-  Widget _buildStatCard(String value, String label, IconData icon, Color color) {
+  Widget _buildStatCard(
+    String value,
+    String label,
+    IconData icon,
+    Color color,
+  ) {
     return Card(
       elevation: 2,
       child: Padding(
@@ -316,7 +316,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               label,
               style: GoogleFonts.poppins(
                 fontSize: 12,
-                color: Colors.grey.shade600,
+                color: AppStyle.textMuted,
               ),
             ),
           ],
