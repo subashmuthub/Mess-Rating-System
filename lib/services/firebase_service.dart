@@ -1,5 +1,7 @@
 // Firebase Service - Handle all Firebase operations
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -26,6 +28,24 @@ class FirebaseService {
   CollectionReference get _analyticsCollection =>
       _firestore.collection('analytics');
   CollectionReference get _eventsCollection => _firestore.collection('events');
+
+  Future<bool> _waitForAuthIfNeeded() async {
+    if (_auth.currentUser != null) {
+      return true;
+    }
+
+    try {
+      final restoredUser = await _auth
+          .authStateChanges()
+          .firstWhere((user) => user != null)
+          .timeout(const Duration(seconds: 4));
+      return restoredUser != null;
+    } on TimeoutException {
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
 
   // ============= AUTH OPERATIONS =============
 
@@ -116,12 +136,66 @@ class FirebaseService {
   Future<List<UserModel>> getAllUsers() async {
     try {
       final querySnapshot = await _usersCollection.get();
-      return querySnapshot.docs
-          .map((doc) => UserModel.fromJson(doc.data() as Map<String, dynamic>))
-          .toList();
+      final users = <UserModel>[];
+      for (final doc in querySnapshot.docs) {
+        try {
+          users.add(UserModel.fromJson(doc.data() as Map<String, dynamic>));
+        } catch (e) {
+          debugPrint('Skipping invalid user document ${doc.id}: $e');
+        }
+      }
+      return users;
     } catch (e) {
       debugPrint('Error getting all users: $e');
       return [];
+    }
+  }
+
+  // Get users count without requiring full document parsing.
+  Future<int?> getUsersCount() async {
+    try {
+      final aggregateSnapshot = await _usersCollection.count().get();
+      return aggregateSnapshot.count;
+    } catch (e) {
+      debugPrint('Error getting users count: $e');
+
+      if (e is FirebaseException && e.code == 'permission-denied') {
+        final authReady = await _waitForAuthIfNeeded();
+        if (authReady) {
+          try {
+            final retrySnapshot = await _usersCollection.count().get();
+            return retrySnapshot.count;
+          } catch (retryError) {
+            debugPrint('Retry users count failed: $retryError');
+          }
+        }
+      }
+
+      return null;
+    }
+  }
+
+  // Get users document count by reading snapshot size directly.
+  Future<int?> getUsersDocumentsCount() async {
+    try {
+      final snapshot = await _usersCollection.get();
+      return snapshot.size;
+    } catch (e) {
+      debugPrint('Error getting users documents count: $e');
+
+      if (e is FirebaseException && e.code == 'permission-denied') {
+        final authReady = await _waitForAuthIfNeeded();
+        if (authReady) {
+          try {
+            final retrySnapshot = await _usersCollection.get();
+            return retrySnapshot.size;
+          } catch (retryError) {
+            debugPrint('Retry users documents count failed: $retryError');
+          }
+        }
+      }
+
+      return null;
     }
   }
 

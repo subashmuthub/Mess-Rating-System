@@ -43,6 +43,14 @@ class _DashboardScreenState extends State<DashboardScreen>
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _initializeDashboard();
+    _scheduleStatsRefresh();
+  }
+
+  void _scheduleStatsRefresh() {
+    Future.delayed(const Duration(seconds: 2), () {
+      if (!mounted) return;
+      _loadDashboardData();
+    });
   }
 
   @override
@@ -63,14 +71,14 @@ class _DashboardScreenState extends State<DashboardScreen>
     try {
       final dbHelper = DatabaseHelper.instance;
       final locations = await dbHelper.getAllLocations();
-      final users = await dbHelper.getAllUsers();
+      final usersCount = await dbHelper.getUsersCount();
       final favoritesCount = await dbHelper.getFavoritesCount();
 
       if (mounted) {
         setState(() {
           _allLocations = locations;
           _totalLocations = locations.length;
-          _totalUsers = users.length;
+          _totalUsers = usersCount;
           _totalFavorites = favoritesCount;
           _setupMarkers();
         });
@@ -435,7 +443,11 @@ class _DashboardScreenState extends State<DashboardScreen>
             color: AppStyle.primary.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: const Icon(Icons.location_on, color: AppStyle.primary, size: 22),
+          child: const Icon(
+            Icons.location_on,
+            color: AppStyle.primary,
+            size: 22,
+          ),
         ),
         title: Text(
           location.name,
@@ -612,10 +624,22 @@ class _DashboardScreenState extends State<DashboardScreen>
             mainAxisSpacing: 8,
             crossAxisSpacing: 8,
             children: [
-              _buildQuickActionTile(Icons.near_me, 'Navigate', AppStyle.primary),
-              _buildQuickActionTile(Icons.favorite, 'Favorites', AppStyle.danger),
+              _buildQuickActionTile(
+                Icons.near_me,
+                'Navigate',
+                AppStyle.primary,
+              ),
+              _buildQuickActionTile(
+                Icons.favorite,
+                'Favorites',
+                AppStyle.danger,
+              ),
               _buildQuickActionTile(Icons.search, 'Search', AppStyle.success),
-              _buildQuickActionTile(Icons.settings, 'Settings', AppStyle.warning),
+              _buildQuickActionTile(
+                Icons.settings,
+                'Settings',
+                AppStyle.warning,
+              ),
             ],
           ),
         ],
@@ -691,7 +715,11 @@ class _DashboardScreenState extends State<DashboardScreen>
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.info_outline, color: AppStyle.primary, size: 20),
+                const Icon(
+                  Icons.info_outline,
+                  color: AppStyle.primary,
+                  size: 20,
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(

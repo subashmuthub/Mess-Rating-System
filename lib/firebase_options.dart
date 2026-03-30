@@ -85,4 +85,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'campus-navigation-system-s7s.firebasestorage.app',
     measurementId: 'G-LF4115LZ48',
   );
+
 }

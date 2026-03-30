@@ -104,6 +104,26 @@ class DatabaseHelper {
     return usersList.map((map) => UserModel.fromJson(map)).toList();
   }
 
+  Future<int> getUsersCount() async {
+    try {
+      final firebaseDocumentsCount = await _firebaseService
+          .getUsersDocumentsCount();
+      if (firebaseDocumentsCount != null) {
+        return firebaseDocumentsCount;
+      }
+
+      final firebaseCount = await _firebaseService.getUsersCount();
+      if (firebaseCount != null) {
+        return firebaseCount;
+      }
+    } catch (e) {
+      debugPrint('Firebase getUsersCount fallback to local: $e');
+    }
+
+    final users = await getAllUsers();
+    return users.length;
+  }
+
   Future<Map<UserRole, int>> getUserRoleCounts() async {
     final users = await getAllUsers();
     final counts = {
@@ -309,7 +329,9 @@ class DatabaseHelper {
     try {
       await _firebaseService.removeFavorite(userId, locationId);
     } catch (e) {
-      debugPrint('Firebase deleteFavoriteByLocation fallback to local only: $e');
+      debugPrint(
+        'Firebase deleteFavoriteByLocation fallback to local only: $e',
+      );
     }
 
     final prefs = await SharedPreferences.getInstance();
@@ -347,7 +369,6 @@ class DatabaseHelper {
     );
   }
 
-
   // Aliases for compatibility
   Future<int> addFavorite(FavoriteModel favorite) => createFavorite(favorite);
   Future<int> removeFavorite(String id) => deleteFavorite(id);
@@ -362,8 +383,8 @@ class DatabaseHelper {
 
     final prefs = await SharedPreferences.getInstance();
     final eventsJson = prefs.getString('events') ?? '[]';
-    final eventsList =
-        (json.decode(eventsJson) as List).cast<Map<String, dynamic>>();
+    final eventsList = (json.decode(eventsJson) as List)
+        .cast<Map<String, dynamic>>();
 
     eventsList.add(event.toJson());
     await prefs.setString('events', json.encode(eventsList));
@@ -382,11 +403,10 @@ class DatabaseHelper {
 
     final prefs = await SharedPreferences.getInstance();
     final eventsJson = prefs.getString('events') ?? '[]';
-    final eventsList =
-        (json.decode(eventsJson) as List).cast<Map<String, dynamic>>();
+    final eventsList = (json.decode(eventsJson) as List)
+        .cast<Map<String, dynamic>>();
 
-    final events =
-        eventsList.map((map) => EventModel.fromJson(map)).toList();
+    final events = eventsList.map((map) => EventModel.fromJson(map)).toList();
     // Sort by start time
     events.sort((a, b) => a.startTime.compareTo(b.startTime));
     return events;
@@ -404,8 +424,8 @@ class DatabaseHelper {
 
     final prefs = await SharedPreferences.getInstance();
     final eventsJson = prefs.getString('events') ?? '[]';
-    final eventsList =
-        (json.decode(eventsJson) as List).cast<Map<String, dynamic>>();
+    final eventsList = (json.decode(eventsJson) as List)
+        .cast<Map<String, dynamic>>();
 
     for (var eventData in eventsList) {
       if (eventData['id'] == id) {
@@ -424,8 +444,8 @@ class DatabaseHelper {
 
     final prefs = await SharedPreferences.getInstance();
     final eventsJson = prefs.getString('events') ?? '[]';
-    final eventsList =
-        (json.decode(eventsJson) as List).cast<Map<String, dynamic>>();
+    final eventsList = (json.decode(eventsJson) as List)
+        .cast<Map<String, dynamic>>();
 
     eventsList.removeWhere((e) => e['id'] == event.id);
     eventsList.add(event.toJson());
@@ -442,8 +462,8 @@ class DatabaseHelper {
 
     final prefs = await SharedPreferences.getInstance();
     final eventsJson = prefs.getString('events') ?? '[]';
-    final eventsList =
-        (json.decode(eventsJson) as List).cast<Map<String, dynamic>>();
+    final eventsList = (json.decode(eventsJson) as List)
+        .cast<Map<String, dynamic>>();
 
     eventsList.removeWhere((e) => e['id'] == id);
     await prefs.setString('events', json.encode(eventsList));
@@ -456,9 +476,11 @@ class DatabaseHelper {
     final cutoffDate = now.add(Duration(days: days));
 
     return allEvents
-        .where((event) =>
-            event.startTime.isAfter(now) &&
-            event.startTime.isBefore(cutoffDate))
+        .where(
+          (event) =>
+              event.startTime.isAfter(now) &&
+              event.startTime.isBefore(cutoffDate),
+        )
         .toList();
   }
 
@@ -478,7 +500,6 @@ class DatabaseHelper {
     final eventsList = (json.decode(eventsJson) as List);
     return eventsList.length;
   }
-
 
   // Database cleanup
   Future<void> close() async {

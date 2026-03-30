@@ -1,9 +1,9 @@
 /// Firebase configuration
 class FirebaseConfig {
   // Firebase Project Settings
-  static const String projectId = 'campus-navigation-system';
-  static const String apiKey = 'AIzaSyDemoKeyChangeMe'; // Change in production
-  static const String appId = '1:123456789:android:abcdef123456';
+  static const String projectId = 'campus-navigation-system-s7s';
+  static const String apiKey = 'AIzaSyBgVtS9AV445fPlAppeH1RUWJDDgKgWuNc';
+  static const String appId = '1:884067584071:android:b20f2441702dbcb1bac962';
 
   // Realtime Database
   static const bool enableOfflinePersistence = true;
