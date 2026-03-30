@@ -11,7 +11,9 @@ import 'location_details_screen.dart';
 import 'navigation_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key});
+  final bool showTopBar;
+
+  const DashboardScreen({super.key, this.showTopBar = true});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -156,7 +158,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
     return Scaffold(
       backgroundColor: AppStyle.pageBackground,
-      appBar: _buildAppBar(),
+      appBar: widget.showTopBar ? _buildAppBar() : null,
       body: SingleChildScrollView(
         child: Column(
           children: [

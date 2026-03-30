@@ -1,5 +1,7 @@
 // User Model - Represents different types of users in the system
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 enum UserRole { student, faculty, visitor, admin }
 
 class UserModel {
@@ -39,6 +41,7 @@ class UserModel {
 
   // Create from JSON
   factory UserModel.fromJson(Map<String, dynamic> json) {
+    final createdAtValue = json['createdAt'];
     return UserModel(
       id: json['id'],
       name: json['name'],
@@ -47,7 +50,9 @@ class UserModel {
       department: json['department'],
       phoneNumber: json['phoneNumber'],
       profileImage: json['profileImage'],
-      createdAt: DateTime.parse(json['createdAt']),
+      createdAt: createdAtValue is Timestamp
+          ? createdAtValue.toDate()
+          : DateTime.parse(createdAtValue.toString()),
     );
   }
 

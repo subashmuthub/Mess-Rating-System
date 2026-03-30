@@ -71,12 +71,14 @@ class LocationModel {
 
   // Create from JSON
   factory LocationModel.fromJson(Map<String, dynamic> json) {
+    final latitude = (json['latitude'] as num).toDouble();
+    final longitude = (json['longitude'] as num).toDouble();
     return LocationModel(
       id: json['id'],
       name: json['name'],
       description: json['description'],
       type: LocationType.values.firstWhere((e) => e.toString() == json['type']),
-      coordinates: LatLng(json['latitude'], json['longitude']),
+      coordinates: LatLng(latitude, longitude),
       buildingCode: json['buildingCode'],
       floorNumber: json['floorNumber'],
       roomNumber: json['roomNumber'],

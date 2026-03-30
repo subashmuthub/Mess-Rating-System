@@ -34,6 +34,9 @@ Future<void> _runStartupStep(
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Keep app startup resilient when device DNS/network blocks font downloads.
+  GoogleFonts.config.allowRuntimeFetching = true;
+
   // Never block runApp on startup failures or long-running web initializers.
   await _runStartupStep('Firebase initialization', () async {
     await Firebase.initializeApp(

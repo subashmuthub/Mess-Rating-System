@@ -51,7 +51,7 @@ dependencies:
   
   # Voice Navigation
   flutter_tts: ^3.8.3
-  speech_to_text: ^6.5.1
+  speech_to_text: 7.0.0
   
   # UI & Icons
   font_awesome_flutter: ^10.6.0

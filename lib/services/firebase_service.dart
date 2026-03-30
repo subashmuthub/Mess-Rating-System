@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/user_model.dart';
 import '../models/location_model.dart';
 import '../models/favorite_model.dart';
+import '../models/event_model.dart';
 
 class FirebaseService {
   static final FirebaseService instance = FirebaseService._init();
@@ -24,6 +25,7 @@ class FirebaseService {
       _firestore.collection('feedback');
   CollectionReference get _analyticsCollection =>
       _firestore.collection('analytics');
+  CollectionReference get _eventsCollection => _firestore.collection('events');
 
   // ============= AUTH OPERATIONS =============
 
@@ -110,6 +112,19 @@ class FirebaseService {
     }
   }
 
+  // Get all users
+  Future<List<UserModel>> getAllUsers() async {
+    try {
+      final querySnapshot = await _usersCollection.get();
+      return querySnapshot.docs
+          .map((doc) => UserModel.fromJson(doc.data() as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      debugPrint('Error getting all users: $e');
+      return [];
+    }
+  }
+
   // Update user profile
   Future<void> updateUserProfile(
     String userId,
@@ -129,14 +144,36 @@ class FirebaseService {
   Future<List<LocationModel>> getAllLocations() async {
     try {
       final querySnapshot = await _locationsCollection.get();
-      return querySnapshot.docs
-          .map(
-            (doc) => LocationModel.fromJson(doc.data() as Map<String, dynamic>),
-          )
-          .toList();
+      final locations = <LocationModel>[];
+      for (final doc in querySnapshot.docs) {
+        try {
+          final data = doc.data() as Map<String, dynamic>;
+          if (!data.containsKey('latitude') || !data.containsKey('longitude')) {
+            continue;
+          }
+          locations.add(LocationModel.fromJson(data));
+        } catch (e) {
+          debugPrint('Skipping invalid location document ${doc.id}: $e');
+        }
+      }
+      return locations;
     } catch (e) {
       debugPrint('Error getting locations: $e');
       return [];
+    }
+  }
+
+  // Get location by ID
+  Future<LocationModel?> getLocationById(String locationId) async {
+    try {
+      final doc = await _locationsCollection.doc(locationId).get();
+      if (!doc.exists) {
+        return null;
+      }
+      return LocationModel.fromJson(doc.data() as Map<String, dynamic>);
+    } catch (e) {
+      debugPrint('Error getting location by id: $e');
+      return null;
     }
   }
 
@@ -209,6 +246,16 @@ class FirebaseService {
     }
   }
 
+  // Remove favorite by document ID
+  Future<void> removeFavoriteById(String favoriteId) async {
+    try {
+      await _favoritesCollection.doc(favoriteId).delete();
+    } catch (e) {
+      debugPrint('Error removing favorite by id: $e');
+      rethrow;
+    }
+  }
+
   // Get user favorites
   Future<List<FavoriteModel>> getUserFavorites(String userId) async {
     try {
@@ -235,6 +282,68 @@ class FirebaseService {
     } catch (e) {
       debugPrint('Error checking favorite: $e');
       return false;
+    }
+  }
+
+  // Get total favorites count
+  Future<int> getFavoritesCount() async {
+    try {
+      final querySnapshot = await _favoritesCollection.get();
+      return querySnapshot.docs.length;
+    } catch (e) {
+      debugPrint('Error getting favorites count: $e');
+      return 0;
+    }
+  }
+
+  // ============= EVENT OPERATIONS =============
+
+  // Save event
+  Future<void> saveEvent(EventModel event) async {
+    try {
+      await _eventsCollection.doc(event.id).set(event.toJson());
+    } catch (e) {
+      debugPrint('Error saving event: $e');
+      rethrow;
+    }
+  }
+
+  // Get all events
+  Future<List<EventModel>> getAllEvents() async {
+    try {
+      final querySnapshot = await _eventsCollection.get();
+      final events = querySnapshot.docs
+          .map((doc) => EventModel.fromJson(doc.data() as Map<String, dynamic>))
+          .toList();
+      events.sort((a, b) => a.startTime.compareTo(b.startTime));
+      return events;
+    } catch (e) {
+      debugPrint('Error getting all events: $e');
+      return [];
+    }
+  }
+
+  // Get event by id
+  Future<EventModel?> getEventById(String eventId) async {
+    try {
+      final doc = await _eventsCollection.doc(eventId).get();
+      if (!doc.exists) {
+        return null;
+      }
+      return EventModel.fromJson(doc.data() as Map<String, dynamic>);
+    } catch (e) {
+      debugPrint('Error getting event by id: $e');
+      return null;
+    }
+  }
+
+  // Delete event
+  Future<void> deleteEvent(String eventId) async {
+    try {
+      await _eventsCollection.doc(eventId).delete();
+    } catch (e) {
+      debugPrint('Error deleting event: $e');
+      rethrow;
     }
   }
 

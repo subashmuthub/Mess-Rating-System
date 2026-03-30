@@ -3,6 +3,9 @@
         android:label="campus_navigation_system"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="AIzaSyBgVtS9AV445fPlAppeH1RUWJDDgKgWuNc" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

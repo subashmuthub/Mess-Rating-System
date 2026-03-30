@@ -1,5 +1,7 @@
 // Favorite Model - User's saved/favorite locations
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class FavoriteModel {
   final String id;
   final String userId;
@@ -28,12 +30,15 @@ class FavoriteModel {
 
   // Create from JSON
   factory FavoriteModel.fromJson(Map<String, dynamic> json) {
+    final createdAtValue = json['createdAt'];
     return FavoriteModel(
       id: json['id'],
       userId: json['userId'],
       locationId: json['locationId'],
       customName: json['customName'],
-      createdAt: DateTime.parse(json['createdAt']),
+      createdAt: createdAtValue is Timestamp
+          ? createdAtValue.toDate()
+          : DateTime.parse(createdAtValue.toString()),
     );
   }
 }

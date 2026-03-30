@@ -1,5 +1,6 @@
 // Event Model - Represents campus events and announcements
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
 enum EventCategory {
@@ -225,6 +226,11 @@ class EventModel {
 
   // Create from JSON
   factory EventModel.fromJson(Map<String, dynamic> json) {
+    final startTimeValue = json['startTime'];
+    final endTimeValue = json['endTime'];
+    final createdAtValue = json['createdAt'];
+    final updatedAtValue = json['updatedAt'];
+
     return EventModel(
       id: json['id'],
       title: json['title'],
@@ -233,8 +239,12 @@ class EventModel {
         (e) => e.toString() == json['category'],
         orElse: () => EventCategory.announcement,
       ),
-      startTime: DateTime.parse(json['startTime']),
-      endTime: DateTime.parse(json['endTime']),
+      startTime: startTimeValue is Timestamp
+          ? startTimeValue.toDate()
+          : DateTime.parse(startTimeValue.toString()),
+      endTime: endTimeValue is Timestamp
+          ? endTimeValue.toDate()
+          : DateTime.parse(endTimeValue.toString()),
       location: json['location'],
       organizerName: json['organizerName'],
       organizerEmail: json['organizerEmail'],
@@ -245,8 +255,12 @@ class EventModel {
       maxAttendees: json['maxAttendees'],
       isImportant: json['isImportant'] ?? false,
       tags: json['tags'] != null ? List<String>.from(json['tags']) : null,
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
+      createdAt: createdAtValue is Timestamp
+          ? createdAtValue.toDate()
+          : DateTime.parse(createdAtValue.toString()),
+      updatedAt: updatedAtValue is Timestamp
+          ? updatedAtValue.toDate()
+          : DateTime.parse(updatedAtValue.toString()),
     );
   }
 
