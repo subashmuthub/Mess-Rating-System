@@ -12,6 +12,7 @@ import '../services/database_helper.dart';
 import 'location_details_screen.dart';
 import 'navigation_screen.dart';
 import '../theme/app_style.dart';
+import '../utils/network_status.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -39,6 +40,8 @@ class _MapScreenState extends State<MapScreen> {
   String _searchQuery = '';
   double _cameraBearing = 0;
   bool _isNightMap = false;
+  bool _isOnline = true;
+  bool _checkingMapAvailability = true;
 
   static const LatLng _fallbackCampusCenter = LatLng(9.1726, 77.8718);
   static const String _nightMapStyle = '''
@@ -75,6 +78,7 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void initState() {
     super.initState();
+    _checkMapAvailability();
     _initializeMap();
   }
 
@@ -90,6 +94,15 @@ class _MapScreenState extends State<MapScreen> {
     await _loadMarkers();
     if (!mounted) return;
     setState(() => _isLoading = false);
+  }
+
+  Future<void> _checkMapAvailability() async {
+    final online = await hasInternetAccess();
+    if (!mounted) return;
+    setState(() {
+      _isOnline = online;
+      _checkingMapAvailability = false;
+    });
   }
 
   Future<void> _getCurrentLocation() async {
@@ -462,6 +475,14 @@ class _MapScreenState extends State<MapScreen> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_checkingMapAvailability) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (!_isOnline) {
+      return _buildOfflineMapView();
     }
 
     return Stack(
@@ -897,6 +918,46 @@ class _MapScreenState extends State<MapScreen> {
             ),
           ),
       ],
+    );
+  }
+
+  Widget _buildOfflineMapView() {
+    return Container(
+      color: Colors.white,
+      alignment: Alignment.center,
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.map_outlined, size: 72, color: AppStyle.primary),
+            const SizedBox(height: 16),
+            Text(
+              'Map unavailable offline',
+              style: GoogleFonts.poppins(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Connect to the internet to load the live campus map. You can still browse locations below and open navigation details.',
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                color: AppStyle.textMuted,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: _checkMapAvailability,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

@@ -1,0 +1,12 @@
+name: google_fonts
+description: Offline-safe local replacement for Google Fonts usage in the app.
+version: 0.0.1
+environment:
+  sdk: ^3.10.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true

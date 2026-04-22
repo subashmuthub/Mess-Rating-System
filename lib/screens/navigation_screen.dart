@@ -140,10 +140,10 @@ class _NavigationScreenState extends State<NavigationScreen> {
       };
     });
 
-    // Calculate straight-line route (for campus navigation)
+    // Calculate straight-line route (for mess management)
     _routePoints = [_currentPosition!, widget.destination.coordinates];
 
-    // For more realistic campus navigation, add intermediate points
+    // For more realistic mess management, add intermediate points
     _routePoints = _generateCampusRoute(
       _currentPosition!,
       widget.destination.coordinates,

@@ -1,6 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <application
-        android:label="campus_navigation_system"
+        android:label="mess_management_system"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <meta-data

@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/auth_service.dart';
+import '../services/notification_service.dart';
 import '../models/user_model.dart';
 import 'dashboard_screen.dart';
 import 'map_screen.dart';
@@ -42,7 +43,7 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: AppStyle.pageBackground,
       appBar: AppBar(
         title: Text(
-          'Campus Navigation',
+          'Mess Management',
           style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
         ),
         elevation: 0.5,
@@ -65,6 +66,17 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('No new notifications')),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.bolt, size: 19),
+            tooltip: 'Test notification',
+            onPressed: () async {
+              await NotificationService.instance.showTestNotification();
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Test notification sent')),
               );
             },
           ),
@@ -411,9 +423,9 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context) => AlertDialog(
         title: Text('About', style: GoogleFonts.poppins()),
         content: Text(
-          'Campus Navigation System v1.0.0\n\n'
+          'Mess Management System v1.0.0\n\n'
           'An intelligent navigation system to help you find your way around campus.\n\n'
-          '© 2026 Campus Navigation Team',
+          '© 2026 Mess Management Team',
           style: GoogleFonts.poppins(),
         ),
         actions: [

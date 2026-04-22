@@ -1,0 +1,14 @@
+{
+  "name": "campus-navigation-fcm-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Node.js sender for Firebase Cloud Messaging",
+  "main": "send_notification.js",
+  "scripts": {
+    "start": "node send_notification.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.5.0",
+    "firebase-admin": "^13.4.0"
+  }
+}

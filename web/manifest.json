@@ -1,6 +1,6 @@
 {
-    "name": "campus_navigation_system",
-    "short_name": "campus_navigation_system",
+    "name": "mess_management_system",
+    "short_name": "mess_management_system",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

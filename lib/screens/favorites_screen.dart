@@ -61,10 +61,22 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
     try {
       final favorites = await DatabaseHelper.instance.getUserFavorites(userId);
-      final favorite = favorites.firstWhere(
-        (fav) => fav.locationId == location.id,
-      );
-      await DatabaseHelper.instance.removeFavorite(favorite.id);
+      FavoriteModel? favorite;
+      for (final fav in favorites) {
+        if (fav.locationId == location.id) {
+          favorite = fav;
+          break;
+        }
+      }
+
+      if (favorite != null) {
+        await DatabaseHelper.instance.removeFavorite(favorite.id);
+      } else {
+        await DatabaseHelper.instance.deleteFavoriteByLocation(
+          userId,
+          location.id,
+        );
+      }
 
       setState(() {
         _favoriteLocations.remove(location);
@@ -79,7 +91,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
               onPressed: () async {
                 // Re-add to favorites
                 final newFavorite = FavoriteModel(
-                  id: DateTime.now().millisecondsSinceEpoch.toString(),
+                  id: '${userId}_${location.id}',
                   userId: userId,
                   locationId: location.id,
                   createdAt: DateTime.now(),

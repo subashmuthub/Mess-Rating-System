@@ -99,7 +99,7 @@ Check out this event: ${_event.title}
 
 ${_event.description}
 
-Campus Navigation System''';
+Mess Management System''';
 
     Share.share(text, subject: _event.title);
   }

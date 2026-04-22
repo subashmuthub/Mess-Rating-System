@@ -96,7 +96,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                     // Title
                     Text(
-                      'Campus Navigation',
+                      'Mess Management',
                       style: GoogleFonts.poppins(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,

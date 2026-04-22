@@ -50,14 +50,26 @@ class _LocationDetailsScreenState extends State<LocationDetailsScreen> {
     if (_isFavorite) {
       // Remove from favorites
       final favorites = await DatabaseHelper.instance.getUserFavorites(userId);
-      final favorite = favorites.firstWhere(
-        (fav) => fav.locationId == widget.location.id,
-      );
-      await DatabaseHelper.instance.removeFavorite(favorite.id);
+      FavoriteModel? favorite;
+      for (final fav in favorites) {
+        if (fav.locationId == widget.location.id) {
+          favorite = fav;
+          break;
+        }
+      }
+
+      if (favorite != null) {
+        await DatabaseHelper.instance.removeFavorite(favorite.id);
+      } else {
+        await DatabaseHelper.instance.deleteFavoriteByLocation(
+          userId,
+          widget.location.id,
+        );
+      }
     } else {
       // Add to favorites
       final favorite = FavoriteModel(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        id: '${userId}_${widget.location.id}',
         userId: userId,
         locationId: widget.location.id,
         createdAt: DateTime.now(),

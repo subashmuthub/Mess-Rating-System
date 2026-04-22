@@ -174,12 +174,15 @@ class AuthService {
     if (_currentUser == null) return false;
 
     try {
-      _currentUser = _currentUser!.copyWith(
+      final updatedUser = _currentUser!.copyWith(
         name: name,
         phoneNumber: phoneNumber,
         department: department,
       );
-      await _saveUserSession(_currentUser!);
+
+      await DatabaseHelper.instance.updateUser(updatedUser);
+      _currentUser = updatedUser;
+      await _saveUserSession(updatedUser);
       return true;
     } catch (e) {
       debugPrint('Update profile error: $e');

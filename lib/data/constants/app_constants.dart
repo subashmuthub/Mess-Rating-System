@@ -1,7 +1,7 @@
 /// Application-wide constants
 class AppConstants {
   // App Info
-  static const String appName = 'Campus Navigation System';
+  static const String appName = 'Mess Management System';
   static const String appVersion = '1.0.0';
   static const String appDescription =
       'An intelligent navigation system to help you find your way around campus';

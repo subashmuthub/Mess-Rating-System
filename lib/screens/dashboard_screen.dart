@@ -1,14 +1,19 @@
-// Comprehensive Campus Navigation Dashboard
+// Comprehensive Mess Management Dashboard
 
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:geolocator/geolocator.dart';
 import '../models/location_model.dart';
+import '../services/auth_service.dart';
 import '../services/database_helper.dart';
 import '../theme/app_style.dart';
 import 'location_details_screen.dart';
 import 'navigation_screen.dart';
+import 'profile_screen.dart';
+import 'search_screen.dart';
+import 'favorites_screen.dart';
+import '../utils/network_status.dart';
 
 class DashboardScreen extends StatefulWidget {
   final bool showTopBar;
@@ -25,6 +30,9 @@ class _DashboardScreenState extends State<DashboardScreen>
   List<LocationModel> _allLocations = [];
   GoogleMapController? _mapController;
   final Set<Marker> _markers = {};
+  bool _mapReady = false;
+  bool _isOnline = true;
+  bool _checkingMapAvailability = true;
 
   // UI State
   bool _isLoading = true;
@@ -35,6 +43,8 @@ class _DashboardScreenState extends State<DashboardScreen>
   late TabController _tabController;
   String _searchQuery = '';
 
+  bool get _canViewUserCount => AuthService.instance.isAdmin;
+
   // Campus center (NEC Kovilpatti)
   static const LatLng _campusCenter = LatLng(9.1726, 77.8718);
 
@@ -44,6 +54,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     _tabController = TabController(length: 3, vsync: this);
     _initializeDashboard();
     _scheduleStatsRefresh();
+    _checkMapAvailability();
   }
 
   void _scheduleStatsRefresh() {
@@ -67,11 +78,22 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
   }
 
+  Future<void> _checkMapAvailability() async {
+    final online = await hasInternetAccess();
+    if (!mounted) return;
+    setState(() {
+      _isOnline = online;
+      _checkingMapAvailability = false;
+    });
+  }
+
   Future<void> _loadDashboardData() async {
     try {
       final dbHelper = DatabaseHelper.instance;
       final locations = await dbHelper.getAllLocations();
-      final usersCount = await dbHelper.getUsersCount();
+      final usersCount = _canViewUserCount
+          ? await dbHelper.getUsersCount()
+          : 0;
       final favoritesCount = await dbHelper.getFavoritesCount();
 
       if (mounted) {
@@ -137,11 +159,63 @@ class _DashboardScreenState extends State<DashboardScreen>
         ),
       );
     }
+
+    if (_mapReady) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _fitMapToMarkers();
+      });
+    }
   }
 
   void _onMarkerSelected(LocationModel location) {
     _mapController?.animateCamera(
       CameraUpdate.newLatLngZoom(location.coordinates, 18),
+    );
+  }
+
+  Future<void> _fitMapToMarkers() async {
+    if (_mapController == null || _markers.isEmpty) {
+      return;
+    }
+
+    if (_markers.length == 1) {
+      final singleLocation = _allLocations.first;
+      await _mapController!.animateCamera(
+        CameraUpdate.newCameraPosition(
+          CameraPosition(
+            target: singleLocation.coordinates,
+            zoom: 18,
+          ),
+        ),
+      );
+      return;
+    }
+
+    double? minLat;
+    double? maxLat;
+    double? minLng;
+    double? maxLng;
+
+    for (final marker in _markers) {
+      final position = marker.position;
+      minLat = minLat == null ? position.latitude : minLat < position.latitude ? minLat : position.latitude;
+      maxLat = maxLat == null ? position.latitude : maxLat > position.latitude ? maxLat : position.latitude;
+      minLng = minLng == null ? position.longitude : minLng < position.longitude ? minLng : position.longitude;
+      maxLng = maxLng == null ? position.longitude : maxLng > position.longitude ? maxLng : position.longitude;
+    }
+
+    if (minLat == null || maxLat == null || minLng == null || maxLng == null) {
+      return;
+    }
+
+    await _mapController!.animateCamera(
+      CameraUpdate.newLatLngBounds(
+        LatLngBounds(
+          southwest: LatLng(minLat, minLng),
+          northeast: LatLng(maxLat, maxLng),
+        ),
+        64,
+      ),
     );
   }
 
@@ -218,9 +292,20 @@ class _DashboardScreenState extends State<DashboardScreen>
       actions: [
         IconButton(
           icon: const Icon(Icons.notifications_none),
-          onPressed: () {},
+          onPressed: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('No new notifications')),
+            );
+          },
         ),
-        IconButton(icon: const Icon(Icons.person), onPressed: () {}),
+        IconButton(
+          icon: const Icon(Icons.person),
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ProfileScreen()),
+            );
+          },
+        ),
       ],
     );
   }
@@ -283,7 +368,7 @@ class _DashboardScreenState extends State<DashboardScreen>
               ),
               _buildStatTile(
                 icon: Icons.people,
-                value: '$_totalUsers',
+                value: _canViewUserCount ? '$_totalUsers' : '--',
                 label: 'Users',
               ),
               _buildStatTile(
@@ -384,19 +469,72 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   Widget _buildMapView() {
-    return GoogleMap(
-      onMapCreated: (controller) => _mapController = controller,
-      initialCameraPosition: CameraPosition(
-        target: _currentPosition ?? _campusCenter,
-        zoom: 16.5,
+    if (_checkingMapAvailability) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (!_isOnline) {
+      return _buildMapUnavailableView();
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(0),
+      child: GoogleMap(
+        onMapCreated: (controller) {
+          _mapController = controller;
+          _mapReady = true;
+          _fitMapToMarkers();
+        },
+        initialCameraPosition: CameraPosition(
+          target: _currentPosition ?? _campusCenter,
+          zoom: 16.5,
+        ),
+        markers: _markers,
+        liteModeEnabled: true,
+        myLocationEnabled: false,
+        myLocationButtonEnabled: false,
+        compassEnabled: false,
+        mapToolbarEnabled: false,
+        zoomControlsEnabled: true,
+        onTap: (_) {},
       ),
-      markers: _markers,
-      myLocationEnabled: true,
-      myLocationButtonEnabled: true,
-      compassEnabled: true,
-      mapToolbarEnabled: false,
-      zoomControlsEnabled: true,
-      onTap: (_) {},
+    );
+  }
+
+  Widget _buildMapUnavailableView() {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.map_outlined, size: 72, color: AppStyle.primary),
+          const SizedBox(height: 16),
+          Text(
+            'Map unavailable offline',
+            style: GoogleFonts.poppins(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'The campus map needs an internet connection to load Google tiles. Locations and navigation are still available from the list below.',
+            style: GoogleFonts.poppins(
+              fontSize: 13,
+              color: AppStyle.textMuted,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton.icon(
+            onPressed: _checkMapAvailability,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Retry'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -628,17 +766,51 @@ class _DashboardScreenState extends State<DashboardScreen>
                 Icons.near_me,
                 'Navigate',
                 AppStyle.primary,
+                onTap: () {
+                  if (_allLocations.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('No locations available')),
+                    );
+                    return;
+                  }
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => NavigationScreen(
+                        destination: _allLocations.first,
+                      ),
+                    ),
+                  );
+                },
               ),
               _buildQuickActionTile(
                 Icons.favorite,
                 'Favorites',
                 AppStyle.danger,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const FavoritesScreen()),
+                  );
+                },
               ),
-              _buildQuickActionTile(Icons.search, 'Search', AppStyle.success),
+              _buildQuickActionTile(
+                Icons.search,
+                'Search',
+                AppStyle.success,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const SearchScreen()),
+                  );
+                },
+              ),
               _buildQuickActionTile(
                 Icons.settings,
                 'Settings',
                 AppStyle.warning,
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Settings available in Home menu')),
+                  );
+                },
               ),
             ],
           ),
@@ -647,11 +819,16 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  Widget _buildQuickActionTile(IconData icon, String label, Color color) {
+  Widget _buildQuickActionTile(
+    IconData icon,
+    String label,
+    Color color, {
+    required VoidCallback onTap,
+  }) {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () {},
+        onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

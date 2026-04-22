@@ -6,18 +6,20 @@
 // tree, read text, and verify that the values of widget properties are correct.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:campus_navigation_system/main.dart';
+import 'package:mess_management_system/mess/mess_app.dart';
 
 void main() {
-  testWidgets('App shows splash branding on launch', (
+  testWidgets('Mess app renders login screen', (
     WidgetTester tester,
   ) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const CampusNavigationApp());
+    SharedPreferences.setMockInitialValues(<String, Object>{});
 
-    // Verify splash content appears immediately after launch.
-    expect(find.text('Campus Navigation'), findsOneWidget);
-    expect(find.text('Loading...'), findsOneWidget);
+    await tester.pumpWidget(const MessMenuApp());
+    await tester.pumpAndSettle();
+
+    expect(find.text('Mess Menu + Rating'), findsOneWidget);
+    expect(find.text('Sign In'), findsOneWidget);
   });
 }

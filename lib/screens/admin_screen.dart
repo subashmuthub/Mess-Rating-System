@@ -1,10 +1,12 @@
 // Admin Screen - Admin panel for data management
 
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../services/auth_service.dart';
 import '../services/database_helper.dart';
+import '../models/event_model.dart';
 import '../models/location_model.dart';
 import '../models/user_model.dart';
 import '../theme/app_style.dart';
@@ -24,6 +26,7 @@ class _AdminScreenState extends State<AdminScreen> {
   String _searchQuery = '';
 
   List<LocationModel> _locations = [];
+  List<EventModel> _events = [];
   List<UserModel> _users = [];
   int _favoritesCount = 0;
 
@@ -40,6 +43,7 @@ class _AdminScreenState extends State<AdminScreen> {
 
   Future<void> _loadAdminData() async {
     final savedLocations = await DatabaseHelper.instance.getAllLocations();
+    final savedEvents = await DatabaseHelper.instance.getAllEvents();
 
     final users = await DatabaseHelper.instance.getAllUsers();
     final favoritesCount = await DatabaseHelper.instance.getFavoritesCount();
@@ -47,6 +51,7 @@ class _AdminScreenState extends State<AdminScreen> {
     if (!mounted) return;
     setState(() {
       _locations = savedLocations;
+      _events = savedEvents;
       _users = users;
       _favoritesCount = favoritesCount;
       _isLoading = false;
@@ -83,9 +88,10 @@ class _AdminScreenState extends State<AdminScreen> {
                 const SizedBox(height: 8),
                 _buildSidebarItem(0, Icons.location_on, 'Locations'),
                 _buildSidebarItem(1, Icons.people, 'Users'),
-                _buildSidebarItem(2, Icons.route, 'Routes'),
-                _buildSidebarItem(3, Icons.analytics, 'Analytics'),
-                _buildSidebarItem(4, Icons.settings, 'Settings'),
+                  _buildSidebarItem(2, Icons.event, 'Events'),
+                  _buildSidebarItem(3, Icons.route, 'Routes'),
+                  _buildSidebarItem(4, Icons.analytics, 'Analytics'),
+                  _buildSidebarItem(5, Icons.settings, 'Settings'),
               ],
             ),
           ),
@@ -125,10 +131,12 @@ class _AdminScreenState extends State<AdminScreen> {
       case 1:
         return _buildUsersTab();
       case 2:
-        return _buildRoutesTab();
+        return _buildEventsTab();
       case 3:
-        return _buildAnalyticsTab();
+        return _buildRoutesTab();
       case 4:
+        return _buildAnalyticsTab();
+      case 5:
         return _buildSettingsTab();
       default:
         return const Center(child: Text('Not implemented'));
@@ -342,6 +350,165 @@ class _AdminScreenState extends State<AdminScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildEventsTab() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Manage Events',
+                style: GoogleFonts.poppins(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: () async {
+                  final result = await _showEventFormDialog();
+                  if (result == null) return;
+
+                  final currentUser = AuthService.instance.currentUser;
+                  final newEvent = EventModel(
+                    id: 'evt_${DateTime.now().millisecondsSinceEpoch}',
+                    title: result.title,
+                    description: result.description,
+                    category: result.category,
+                    startTime: result.startTime,
+                    endTime: result.endTime,
+                    location: result.location.isEmpty ? null : result.location,
+                    organizerName: result.organizerName.isEmpty
+                        ? currentUser?.name
+                        : result.organizerName,
+                    organizerEmail: result.organizerEmail.isEmpty
+                        ? currentUser?.email
+                        : result.organizerEmail,
+                    imageUrl: result.imageUrl.isEmpty ? null : result.imageUrl,
+                    attendees: const [],
+                    maxAttendees: result.maxAttendees,
+                    isImportant: result.isImportant,
+                    tags: result.tags,
+                    createdAt: DateTime.now(),
+                    updatedAt: DateTime.now(),
+                  );
+
+                  await DatabaseHelper.instance.createEvent(newEvent);
+                  await _loadAdminData();
+
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Event added successfully')),
+                  );
+                },
+                icon: const Icon(Icons.add),
+                label: const Text('Add Event'),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            'All created events are stored in Firestore with local fallback for offline access.',
+            style: GoogleFonts.poppins(
+              fontSize: 13,
+              color: AppStyle.textMuted,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: _events.length,
+            itemBuilder: (context, index) {
+              final event = _events[index];
+              return Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: AppStyle.primary.withValues(alpha: 0.12),
+                    child: Text(event.categoryIcon),
+                  ),
+                  title: Text(
+                    event.title,
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                  ),
+                  subtitle: Text(
+                    '${event.formattedDateRange}\n${event.location ?? 'No location'}',
+                  ),
+                  isThreeLine: true,
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.edit, color: AppStyle.primary),
+                        onPressed: () async {
+                          final messenger = ScaffoldMessenger.of(this.context);
+                          final result = await _showEventFormDialog(
+                            existing: event,
+                          );
+                          if (result == null) return;
+
+                          final updatedEvent = event.copyWith(
+                            title: result.title,
+                            description: result.description,
+                            category: result.category,
+                            startTime: result.startTime,
+                            endTime: result.endTime,
+                            location: result.location.isEmpty
+                                ? null
+                                : result.location,
+                            organizerName: result.organizerName.isEmpty
+                                ? event.organizerName
+                                : result.organizerName,
+                            organizerEmail: result.organizerEmail.isEmpty
+                                ? event.organizerEmail
+                                : result.organizerEmail,
+                            imageUrl: result.imageUrl.isEmpty
+                                ? null
+                                : result.imageUrl,
+                            maxAttendees: result.maxAttendees,
+                            isImportant: result.isImportant,
+                            tags: result.tags,
+                            updatedAt: DateTime.now(),
+                          );
+
+                          await DatabaseHelper.instance.updateEvent(
+                            updatedEvent,
+                          );
+                          await _loadAdminData();
+
+                          if (!mounted) return;
+                          messenger.showSnackBar(
+                            const SnackBar(
+                              content: Text('Event updated successfully'),
+                            ),
+                          );
+                        },
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete, color: AppStyle.danger),
+                        onPressed: () => _confirmDeleteEvent(event),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -749,6 +916,335 @@ class _AdminScreenState extends State<AdminScreen> {
       ),
     );
   }
+
+  Future<_EventFormData?> _showEventFormDialog({EventModel? existing}) async {
+    final titleController = TextEditingController(text: existing?.title ?? '');
+    final descriptionController = TextEditingController(
+      text: existing?.description ?? '',
+    );
+    final locationController = TextEditingController(
+      text: existing?.location ?? '',
+    );
+    final organizerNameController = TextEditingController(
+      text: existing?.organizerName ?? '',
+    );
+    final organizerEmailController = TextEditingController(
+      text: existing?.organizerEmail ?? '',
+    );
+    final imageUrlController = TextEditingController(
+      text: existing?.imageUrl ?? '',
+    );
+    final maxAttendeesController = TextEditingController(
+      text: existing?.maxAttendees?.toString() ?? '',
+    );
+    final tagsController = TextEditingController(
+      text: existing?.tags?.join(', ') ?? '',
+    );
+    final startTimeDisplayController = TextEditingController(
+      text: existing != null
+          ? DateFormat('yyyy-MM-dd HH:mm').format(existing.startTime)
+          : '',
+    );
+    final endTimeDisplayController = TextEditingController(
+      text: existing != null
+          ? DateFormat('yyyy-MM-dd HH:mm').format(existing.endTime)
+          : '',
+    );
+
+    final formKey = GlobalKey<FormState>();
+    var selectedCategory = existing?.category ?? EventCategory.announcement;
+    var isImportant = existing?.isImportant ?? false;
+    DateTime? startTime = existing?.startTime;
+    DateTime? endTime = existing?.endTime;
+
+    Future<DateTime?> pickDateTime(DateTime? initialValue) async {
+      final date = await showDatePicker(
+        context: context,
+        initialDate: initialValue ?? DateTime.now(),
+        firstDate: DateTime(2020),
+        lastDate: DateTime(2100),
+      );
+      if (date == null) return null;
+
+      if (!mounted) return null;
+
+      final time = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.fromDateTime(initialValue ?? DateTime.now()),
+      );
+      if (time == null) return null;
+
+      return DateTime(
+        date.year,
+        date.month,
+        date.day,
+        time.hour,
+        time.minute,
+      );
+    }
+
+    return showDialog<_EventFormData>(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text(
+                existing == null ? 'Add Event' : 'Edit Event',
+                style: GoogleFonts.poppins(),
+              ),
+              content: SizedBox(
+                width: 560,
+                child: Form(
+                  key: formKey,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextFormField(
+                          controller: titleController,
+                          decoration: const InputDecoration(labelText: 'Title'),
+                          validator: (value) => value == null || value.trim().isEmpty
+                              ? 'Title is required'
+                              : null,
+                        ),
+                        const SizedBox(height: 10),
+                        TextFormField(
+                          controller: descriptionController,
+                          decoration: const InputDecoration(
+                            labelText: 'Description',
+                          ),
+                          minLines: 3,
+                          maxLines: 5,
+                          validator: (value) => value == null || value.trim().isEmpty
+                              ? 'Description is required'
+                              : null,
+                        ),
+                        const SizedBox(height: 10),
+                        DropdownButtonFormField<EventCategory>(
+                          initialValue: selectedCategory,
+                          decoration: const InputDecoration(labelText: 'Category'),
+                          items: EventCategory.values.map((category) {
+                            return DropdownMenuItem(
+                              value: category,
+                              child: Text(category.name.toUpperCase()),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            if (value == null) return;
+                            setDialogState(() => selectedCategory = value);
+                          },
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                readOnly: true,
+                                controller: startTimeDisplayController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Start Time',
+                                ),
+                                validator: (value) => value == null || value.trim().isEmpty
+                                    ? 'Start time is required'
+                                    : null,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            TextButton.icon(
+                              onPressed: () async {
+                                final picked = await pickDateTime(startTime);
+                                if (picked == null) return;
+                                setDialogState(() {
+                                  startTime = picked;
+                                  startTimeDisplayController.text =
+                                      DateFormat('yyyy-MM-dd HH:mm').format(
+                                        picked,
+                                      );
+                                });
+                              },
+                              icon: const Icon(Icons.date_range),
+                              label: const Text('Pick'),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                readOnly: true,
+                                controller: endTimeDisplayController,
+                                decoration: const InputDecoration(
+                                  labelText: 'End Time',
+                                ),
+                                validator: (value) => value == null || value.trim().isEmpty
+                                    ? 'End time is required'
+                                    : null,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            TextButton.icon(
+                              onPressed: () async {
+                                final picked = await pickDateTime(endTime);
+                                if (picked == null) return;
+                                setDialogState(() {
+                                  endTime = picked;
+                                  endTimeDisplayController.text =
+                                      DateFormat('yyyy-MM-dd HH:mm').format(
+                                        picked,
+                                      );
+                                });
+                              },
+                              icon: const Icon(Icons.date_range),
+                              label: const Text('Pick'),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        TextFormField(
+                          controller: locationController,
+                          decoration: const InputDecoration(
+                            labelText: 'Location (optional)',
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        TextFormField(
+                          controller: organizerNameController,
+                          decoration: const InputDecoration(
+                            labelText: 'Organizer Name (optional)',
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        TextFormField(
+                          controller: organizerEmailController,
+                          decoration: const InputDecoration(
+                            labelText: 'Organizer Email (optional)',
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        TextFormField(
+                          controller: imageUrlController,
+                          decoration: const InputDecoration(
+                            labelText: 'Image URL (optional)',
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        TextFormField(
+                          controller: maxAttendeesController,
+                          decoration: const InputDecoration(
+                            labelText: 'Max Attendees (optional)',
+                          ),
+                          keyboardType: const TextInputType.numberWithOptions(
+                            signed: false,
+                            decimal: false,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        TextFormField(
+                          controller: tagsController,
+                          decoration: const InputDecoration(
+                            labelText: 'Tags (comma separated)',
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Important event'),
+                          value: isImportant,
+                          onChanged: (value) {
+                            setDialogState(() => isImportant = value);
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    if (!formKey.currentState!.validate()) return;
+                    if (startTime == null || endTime == null) return;
+                    if (endTime!.isBefore(startTime!)) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('End time must be after start time'),
+                        ),
+                      );
+                      return;
+                    }
+
+                    final maxAttendees = int.tryParse(
+                      maxAttendeesController.text.trim(),
+                    );
+                    final tags = tagsController.text
+                        .split(',')
+                        .map((tag) => tag.trim())
+                        .where((tag) => tag.isNotEmpty)
+                        .toList();
+
+                    Navigator.pop(
+                      context,
+                      _EventFormData(
+                        title: titleController.text.trim(),
+                        description: descriptionController.text.trim(),
+                        category: selectedCategory,
+                        startTime: startTime!,
+                        endTime: endTime!,
+                        location: locationController.text.trim(),
+                        organizerName: organizerNameController.text.trim(),
+                        organizerEmail: organizerEmailController.text.trim(),
+                        imageUrl: imageUrlController.text.trim(),
+                        maxAttendees: maxAttendees,
+                        isImportant: isImportant,
+                        tags: tags,
+                      ),
+                    );
+                  },
+                  child: Text(existing == null ? 'Add' : 'Update'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _confirmDeleteEvent(EventModel event) {
+    final messenger = ScaffoldMessenger.of(context);
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Delete Event', style: GoogleFonts.poppins()),
+        content: Text('Are you sure you want to delete ${event.title}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await DatabaseHelper.instance.deleteEvent(event.id);
+              await _loadAdminData();
+              if (!mounted) return;
+              messenger.showSnackBar(
+                SnackBar(content: Text('${event.title} deleted')),
+              );
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppStyle.danger),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _LocationFormData {
@@ -767,6 +1263,36 @@ class _LocationFormData {
     required this.openingHours,
     required this.type,
     required this.coordinates,
+    required this.tags,
+  });
+}
+
+class _EventFormData {
+  final String title;
+  final String description;
+  final EventCategory category;
+  final DateTime startTime;
+  final DateTime endTime;
+  final String location;
+  final String organizerName;
+  final String organizerEmail;
+  final String imageUrl;
+  final int? maxAttendees;
+  final bool isImportant;
+  final List<String> tags;
+
+  const _EventFormData({
+    required this.title,
+    required this.description,
+    required this.category,
+    required this.startTime,
+    required this.endTime,
+    required this.location,
+    required this.organizerName,
+    required this.organizerEmail,
+    required this.imageUrl,
+    required this.maxAttendees,
+    required this.isImportant,
     required this.tags,
   });
 }

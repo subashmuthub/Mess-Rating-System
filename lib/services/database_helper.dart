@@ -104,6 +104,29 @@ class DatabaseHelper {
     return usersList.map((map) => UserModel.fromJson(map)).toList();
   }
 
+  Future<int> updateUser(UserModel user) async {
+    try {
+      await _firebaseService.updateUserProfile(user.id, {
+        'name': user.name,
+        'department': user.department,
+        'phoneNumber': user.phoneNumber,
+      });
+    } catch (e) {
+      debugPrint('Firebase updateUser fallback to local only: $e');
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final usersJson = prefs.getString('users') ?? '[]';
+    final usersList = (json.decode(usersJson) as List)
+        .cast<Map<String, dynamic>>();
+
+    usersList.removeWhere((u) => u['id'] == user.id || u['email'] == user.email);
+    usersList.add(user.toJson());
+
+    await prefs.setString('users', json.encode(usersList));
+    return 1;
+  }
+
   Future<int> getUsersCount() async {
     try {
       final firebaseDocumentsCount = await _firebaseService
@@ -253,6 +276,7 @@ class DatabaseHelper {
 
   // Favorite CRUD operations
   Future<int> createFavorite(FavoriteModel favorite) async {
+    final favoriteDocId = '${favorite.userId}_${favorite.locationId}';
     try {
       await _firebaseService.addFavorite(favorite.userId, favorite.locationId);
     } catch (e) {
@@ -269,7 +293,10 @@ class DatabaseHelper {
           f['userId'] == favorite.userId &&
           f['locationId'] == favorite.locationId,
     );
-    favoritesList.add(favorite.toJson());
+    favoritesList.add({
+      ...favorite.toJson(),
+      'id': favoriteDocId,
+    });
     await prefs.setString('favorites', json.encode(favoritesList));
     return 1;
   }
@@ -309,16 +336,34 @@ class DatabaseHelper {
   }
 
   Future<int> deleteFavorite(String id) async {
-    try {
-      await _firebaseService.removeFavoriteById(id);
-    } catch (e) {
-      debugPrint('Firebase deleteFavorite fallback to local only: $e');
-    }
+    FavoriteModel? removedFavorite;
 
     final prefs = await SharedPreferences.getInstance();
     final favoritesJson = prefs.getString('favorites') ?? '[]';
     final favoritesList = (json.decode(favoritesJson) as List)
         .cast<Map<String, dynamic>>();
+
+    final existing = favoritesList.where((f) => f['id'] == id).toList();
+    if (existing.isNotEmpty) {
+      removedFavorite = FavoriteModel.fromJson(existing.first);
+    }
+
+    try {
+      await _firebaseService.removeFavoriteById(id);
+    } catch (e) {
+      if (removedFavorite != null) {
+        try {
+          await _firebaseService.removeFavorite(
+            removedFavorite.userId,
+            removedFavorite.locationId,
+          );
+        } catch (innerError) {
+          debugPrint('Firebase deleteFavorite fallback to local only: $innerError');
+        }
+      } else {
+        debugPrint('Firebase deleteFavorite fallback to local only: $e');
+      }
+    }
 
     favoritesList.removeWhere((f) => f['id'] == id);
     await prefs.setString('favorites', json.encode(favoritesList));
@@ -495,6 +540,15 @@ class DatabaseHelper {
   }
 
   Future<int> getEventsCount() async {
+    try {
+      final firebaseEvents = await _firebaseService.getAllEvents();
+      if (firebaseEvents.isNotEmpty) {
+        return firebaseEvents.length;
+      }
+    } catch (e) {
+      debugPrint('Firebase getEventsCount fallback to local: $e');
+    }
+
     final prefs = await SharedPreferences.getInstance();
     final eventsJson = prefs.getString('events') ?? '[]';
     final eventsList = (json.decode(eventsJson) as List);
